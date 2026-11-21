@@ -647,10 +647,10 @@ function manOf(d){ return (game.assign[d.team]||[])[d.idx]; }
 const ZONE_R=2.2, ZONE_HALF=1.22, ZONE_BACK=1.0;
 const CONTEST=[
   {name:'空位',color:'#36d27a',mul:1.0,win:0.034},
-  {name:'轻微干扰',color:'#c6e04a',mul:1.2,win:0.030},
-  {name:'中度干扰',color:'#ffb02e',mul:1.5,win:0.025},
-  {name:'严重干扰',color:'#ff5a3a',mul:1.9,win:0.019},
-  {name:'封盖级干扰',color:'#c03cff',mul:2.5,win:0.014}];
+  {name:'轻微干扰',color:'#c6e04a',mul:1.35,win:0.029},
+  {name:'中度干扰',color:'#ffb02e',mul:1.85,win:0.023},
+  {name:'严重干扰',color:'#ff5a3a',mul:2.5,win:0.017},
+  {name:'封盖级干扰',color:'#c03cff',mul:3.6,win:0.011}];
 const CONTEST_EDGES=[0,0.15,0.38,0.62,0.88,1.3];
 function contestInfo(p,x,z){
   const hx=RIM.x-x,hz=RIM.z-z,hl=Math.hypot(hx,hz)||1, ux=hx/hl, uz=hz/hl;
@@ -678,14 +678,15 @@ function contestInfo(p,x,z){
 }
 function contestAt(p,x,z){ return contestInfo(p,x,z).cf; }
 function layupSigma(p,cf){return (0.30-0.0024*p.a.inside)*0.6*cf;}
-function shotEP(p,x,z){
-  const d=Math.hypot(x-RIM.x,z-RIM.z), cf=contestAt(p,x,z);
-  if(d<2.6){ const s=layupSigma(p,cf); return 2*makeP(s,s*0.6); }
-  const three=isThree(x,z);
-  const rating=three?p.a.three:(d>3.6?p.a.mid:(p.a.mid+p.a.inside)/2);
-  const s1=jumperSigma(rating,d,0,cf), s2=jumperSigma(rating,d,0.06,cf);
-  return (three?3:2)*(makeP(s1,s1*0.55)+makeP(s2,s2*0.55))/2;
+function estMake(p,x,z){   // expected make chance for a typical release at this spot, with the current contest and legs
+  const d=Math.hypot(x-RIM.x,z-RIM.z), ci=contestInfo(p,x,z);
+  if(d<2.6){ const s=layupSigma(p,ci.cf)*(1+0.35*tiredK(p,0.5)); return makeP(s,s*0.6); }
+  const three=isThree(x,z), ss=SHOT_STYLES[p.shot]||SHOT_STYLES.set;
+  const rating=three?p.a.three:(d>3.6?p.a.mid:(p.a.mid+p.a.inside)/2), cf=1+(ci.cf-1)*ss.cmul, win=CONTEST[ci.level].win, tk=1+0.55*tiredK(p,0.6);
+  const s1=jumperSigma(rating,d,0,cf,win)*tk, s2=jumperSigma(rating,d,0.06,cf,win)*tk;
+  return (makeP(s1,s1*0.55)+makeP(s2,s2*0.55))/2;
 }
+function shotEP(p,x,z){ return estMake(p,x,z)*(Math.hypot(x-RIM.x,z-RIM.z)>=2.6&&isThree(x,z)?3:2); }
 function setDesire(p,tx,tz,sprint){
   if(sprint&&!isUser(p)&&p.sta<42&&game.ball&&game.ball.holder!==p&&Math.hypot(tx-p.x,tz-p.z)<6) sprint=false;   // AI saves its legs when it can
   const dx=tx-p.x,dz=tz-p.z,d=Math.hypot(dx,dz);
@@ -735,7 +736,7 @@ function releaseShot(p){
   const sig=jumperSigma(rating,dist,err,cf,win)*(p.fade?1.1:1)*(1+0.55*tiredK(p,0.6));   // tired legs = short/long misses
   const perfect=Math.abs(err)<=win;
   game.lastContest={level:ci.level,t:game.time,p};
-  if(isUser(p)) floatText(CONTEST[ci.level].name,p.x,p.y+p.h+0.95,p.z,CONTEST[ci.level].color,14);
+  if(isUser(p)) floatText(CONTEST[ci.level].name+(ci.level?' · 命中率↓':''),p.x,p.y+p.h+0.95,p.z,CONTEST[ci.level].color,14);
   else if(ci.level>=2&&ci.who.some(d=>isUser(d))) floatText('你'+CONTEST[ci.level].name+'!',p.x,p.y+p.h+0.8,p.z,CONTEST[ci.level].color,16);
   const bias=perfect?0:clamp(err*0.9,-0.3,0.3);
   const bl=ballLocal(p), pos=localToWorld(p,bl.x,bl.y+0.05,bl.z+0.05);
@@ -813,7 +814,7 @@ function startDunk(p){
 function slam(p){
   const b=game.ball; p.released=true; if(b.holder!==p) return;
   const cf=contestAt(p,p.x,p.z);
-  const fail=Math.random()<clamp(0.03+(cf-1)*0.16-(p.a.dunk-80)*0.004,0.01,0.6);
+  const fail=Math.random()<clamp(0.03+(cf-1)*0.17-(p.a.dunk-80)*0.004,0.01,0.7);
   const D=distHoop(p)||1, ux=(p.x-RIM.x)/D, uz=Math.abs((p.z-RIM.z)/D);
   launch(p,{x:RIM.x,y:RIM.y+0.3,z:RIM.z},{vx:0,vy:-4.5,vz:0,wx:0,wy:0,wz:0},2);
   if(fail){ b.x=RIM.x+ux*(RIM.r+0.04); b.z=RIM.z+uz*(RIM.r+0.04); b.y=RIM.y+0.22; b.vx=-ux*0.6; b.vz=-uz*0.6; b.vy=-3.2; }
@@ -2501,7 +2502,7 @@ function drawContestPill(){
   if(!who) return;
   const ci=contestInfo(who,who.x,who.z), C=CONTEST[ci.level];
   const mp=project3(who.rx??who.x,(who.ry??who.y)+who.h+0.62,who.rz??who.z); if(!mp) return;
-  const txt=(who===u?'':'对手 · ')+C.name;
+  const pct=Math.round(estMake(who,who.x,who.z)*100), txt=(who===u?'':'对手 · ')+C.name+' · 命中 '+pct+'%';
   ctx.font=`800 12px ${FONT}`; const tw=ctx.measureText(txt).width+18;
   ctx.globalAlpha=who===u?0.95:0.75;
   ctx.fillStyle='rgba(10,12,18,.78)'; rr(mp.x-tw/2,mp.y-11,tw,22,11); ctx.fill();
