@@ -89,7 +89,7 @@ table.box th{color:var(--muted);font-weight:600}
   <div class="wrap">
     <div class="brand">
       <div class="logo">Courtside<br><span>3v3</span></div>
-      <div class="sub">3D 半场篮球 · 真实物理 · 手势运球</div>
+      <div class="sub">3D 篮球 · 半场/全场 · 真实物理 · 手势运球</div>
       <div class="lbl">难度</div>
       <div class="chips" id="diffChips">
         <button class="chip" data-d="0">新秀</button>
@@ -99,7 +99,19 @@ table.box th{color:var(--muted);font-weight:600}
       <div class="lbl">镜头</div>
       <div class="chips camChips">
         <button class="chip sel" data-c="broadcast">转播视角</button>
+        <button class="chip" data-c="close">近景转播</button>
         <button class="chip" data-c="behind">底线后方</button>
+      </div>
+      <div class="lbl">全场单节时长</div>
+      <div class="chips" id="qChips">
+        <button class="chip" data-m="2">2分钟</button>
+        <button class="chip sel" data-m="3">3分钟</button>
+        <button class="chip" data-m="5">5分钟</button>
+      </div>
+      <div class="lbl">观众（关掉更流畅）</div>
+      <div class="chips crowdChips">
+        <button class="chip sel" data-v="1">开</button>
+        <button class="chip" data-v="0">关</button>
       </div>
       <div class="lbl">画质</div>
       <div class="chips qualChips">
@@ -108,6 +120,7 @@ table.box th{color:var(--muted);font-weight:600}
       </div>
       <div class="row">
         <button class="big" id="startGame">3v3 比赛</button>
+        <button class="big alt" id="startFull">全场 5v5</button>
         <button class="big alt" id="start1v1">1v1 单挑</button>
         <button class="big alt" id="startPractice">练习</button>
       </div>
@@ -142,7 +155,12 @@ table.box th{color:var(--muted);font-weight:600}
     <div class="result">暂停</div>
     <div class="chips camChips" style="justify-content:center">
       <button class="chip sel" data-c="broadcast">转播视角</button>
+      <button class="chip" data-c="close">近景转播</button>
       <button class="chip" data-c="behind">底线后方</button>
+    </div>
+    <div class="chips crowdChips" style="justify-content:center">
+      <button class="chip sel" data-v="1">观众 开</button>
+      <button class="chip" data-v="0">观众 关</button>
     </div>
     <div class="row" style="justify-content:center">
       <button class="big" id="resume">继续</button>
@@ -346,7 +364,14 @@ const TEAMS=[
     {name:'包铁',num:50,h:2.13,skin:'#f0c9a2',hair:'#4a3020',band:false,a:{three:56,mid:70,inside:88,speed:64,handle:56,def:84,reb:90,pass:68,dunk:90,block:86}},
    ]},
 ];
-const LOOKS=[[{style:'short',wrist:true,shot:'quick'},{style:'buzz',sleeve:true,shot:'fade'},{style:'bald',beard:true,shot:'set'}],[{style:'short',wrist:true,shot:'quick'},{style:'afro',beard:true,shot:'high'},{style:'buzz',sleeve:true,shot:'set'}]];
+TEAMS[0].players.push(
+  {name:'高翔',num:8,h:1.98,skin:'#d8a47a',hair:'#18110c',band:false,a:{three:83,mid:81,inside:77,speed:85,handle:79,def:78,reb:62,pass:76,dunk:76,block:50}},
+  {name:'马骁',num:21,h:2.06,skin:'#9a6644',hair:'#120c08',band:true,a:{three:70,mid:78,inside:85,speed:76,handle:66,def:83,reb:82,pass:70,dunk:85,block:74}});
+TEAMS[1].players.push(
+  {name:'程锋',num:12,h:1.96,skin:'#e6bc94',hair:'#22170f',band:false,a:{three:82,mid:80,inside:75,speed:84,handle:78,def:77,reb:60,pass:78,dunk:72,block:48}},
+  {name:'欧阳岳',num:33,h:2.08,skin:'#a87250',hair:'#0f0a06',band:false,a:{three:68,mid:76,inside:86,speed:74,handle:64,def:84,reb:84,pass:68,dunk:86,block:76}});
+const LOOKS=[[{style:'short',wrist:true,shot:'quick'},{style:'buzz',sleeve:true,shot:'fade'},{style:'bald',beard:true,shot:'set'},{style:'afro',shot:'high'},{style:'buzz',beard:true,wrist:true,shot:'set'}],
+             [{style:'short',wrist:true,shot:'quick'},{style:'afro',beard:true,shot:'high'},{style:'buzz',sleeve:true,shot:'set'},{style:'short',beard:true,shot:'fade'},{style:'bald',wrist:true,shot:'set'}]];
 // shot packages, built from common jump-shot mechanics: dip -> set point -> release -> held follow-through.
 // gather = time of the dip before take-off, rel = fraction of the time-to-apex at which the ball leaves the hand,
 // setY/setZ = set point (fraction of height / metres forward), hold = pause at the set point (two-motion), cmul = how much a contest hurts
@@ -388,7 +413,7 @@ const params=new URLSearchParams(location.search);
 const game={mode:'menu',size:3,players:[],teams:[[],[]],ball:null,off:0,score:[0,0],shotClock:24,needClear:false,dead:0,next:0,
   user:null,time:0,diff:1,over:false,auto:params.get('auto')==='1',paused:false,banner:null,cheer:0,rimShake:0,netSwish:0,
   prac:{att:0,made:0,ta:0,tm:0},landT:0,stuckT:0,retT:0,play:null,pending:[null,null],defScheme:['man','man'],assign:[[],[]],
-  camMode:'broadcast',quality:1,gestUsed:false,lastMode:'game3'};
+  camMode:'broadcast',quality:1,gestUsed:false,lastMode:'game3',full:false,flip:false,quarter:1,gameClock:180,qLen:180,crowdOn:true,backT:0,clockOut:false,qBreak:false};
 const floats=[];
 
 function makePlayer(def,team,idx,mod){
@@ -408,9 +433,10 @@ function makeGameBall(){return {x:0,y:1,z:10,vx:0,vy:0,vz:0,wx:0,wy:0,wz:0,holde
 
 function newGame(mode){
   game.mode=mode==='practice'?'practice':'game';
-  game.size=mode==='game3'?3:1;
+  game.full=mode==='full'; game.size=mode==='full'?5:mode==='game3'?3:1;
+  if(game.flip) setFlip(false);
   game.score=[0,0]; game.over=false; game.time=0; game.paused=false; floats.length=0; game.gestUsed=false;
-  game.players.concat(game.refs||[]).forEach(p=>{ if(p.rig) scene.remove(p.rig.g); });
+  game.players.concat(game.refs||[]).forEach(p=>{ if(p.rig) p.rig.g.parent.remove(p.rig.g); });
   game.refs=[];
   game.players=[]; game.teams=[[],[]]; game.prac={att:0,made:0,ta:0,tm:0}; game.play=null; game.pending=[null,null];
   const d=DIFF[game.diff];
@@ -421,9 +447,10 @@ function newGame(mode){
   }
   game.ball=makeGameBall();
   game.user=game.teams[0][0];
-  if(game.mode==='game') for(let i=0;i<2;i++){ const r=makePlayer({name:'裁判',num:'',h:1.84+i*0.04,skin:i?'#c48b62':'#e2b48c',hair:'#151515',style:'buzz',a:{three:50,mid:50,inside:50,speed:70,handle:50,def:50,reb:50,pass:50,dunk:50,block:50}},2,i,0); r.x=i?-8.1:3; r.z=i?8:-0.9; r.ref=true; r.rig=makeRig(r); game.refs.push(r); }
+  if(game.mode==='game') for(let i=0;i<2;i++){ const r=makePlayer({name:'裁判',num:'',h:1.84+i*0.04,skin:i?'#c48b62':'#e2b48c',hair:'#151515',style:'buzz',a:{three:50,mid:50,inside:50,speed:70,handle:50,def:50,reb:50,pass:50,dunk:50,block:50}},2,i,0); r.x=i?-8.1:3; r.z=i?8:-0.9; r.ref=true; r.yaw=0; r.rig=makeRig(r); game.refs.push(r); }
   document.body.classList.toggle('solo',game.size===1);
   if(game.mode==='practice'){ const p=game.user; game.off=0; resetP(p,0,8.6); giveBall(p); banner('练习：右侧滑动试试运球招式',2.2); }
+  else if(game.full){ game.quarter=1; game.gameClock=game.qLen; game.clockOut=false; game.qBreak=false; setupInbound(0); }
   else setupCheck(0);
   snapCamera();
 }
@@ -437,6 +464,56 @@ function resetP(p,x,z){
 function giveBall(p){ const b=game.ball; b.holder=p; b.state='held'; b.fromShot=false; b.scored=false; b.touched=false; b.passTo=null; b.lastTeam=p.team; p.holdT=0; }
 function resetAssign(){ for(const t of [0,1]) game.assign[t]=game.teams[t].map((p,i)=>game.teams[1-t][i]); }
 
+// ----- full court -----
+// The simulation always runs in the frame of the team with the ball: that team attacks the hoop at z=1.6 and its
+// backcourt runs to z=28. When possession changes, every dynamic object is rotated 180 degrees about mid-court and
+// the render root is rotated back, so nothing moves on screen while the code keeps a single attacking hoop.
+function courtLen(){ return game.full?28:14; }
+function setFlip(f){ game.flip=f; if(simRoot){ simRoot.rotation.y=f?Math.PI:0; simRoot.position.z=f?28:0; } }
+function flipObj(o){ if(!o) return; o.x=-o.x; o.z=28-o.z; if(o.vx!==undefined){ o.vx=-o.vx; o.vz=-o.vz; } }
+function flipWorld(){
+  const L=28, fx=o=>{ for(const k of ['x','sx','rx','tx']) if(o[k]!==undefined) o[k]=-o[k]; for(const k of ['z','sz','rz','tz']) if(o[k]!==undefined) o[k]=L-o[k]; };
+  for(const p of game.players.concat(game.refs||[])){
+    fx(p); p.vx=-p.vx; p.vz=-p.vz; p.pvx=-(p.pvx||0); p.pvz=-(p.pvz||0); p.accX=-(p.accX||0); p.accZ=-(p.accZ||0);
+    p.yaw+=Math.PI; if(p.syaw!==undefined) p.syaw+=Math.PI; if(p.ryaw!==undefined) p.ryaw+=Math.PI;
+    for(const v of [p.lv,p.lvF,p.biteV,p.euro]) if(v){ v.x=-v.x; v.z=-v.z; }
+    if(p.mv){ const m=p.mv; m.fx=-m.fx; m.fz=-m.fz; m.lx=-m.lx; m.lz=-m.lz; m.vx=-m.vx; m.vz=-m.vz; m.yaw0+=Math.PI; }
+    if(p.feet) for(const f of p.feet){ f.px=-f.px; f.pz=L-f.pz; if(f.sw){ f.sw.fx=-f.sw.fx; f.sw.fz=L-f.sw.fz; f.sw.tx=-f.sw.tx; f.sw.tz=L-f.sw.tz; } }
+    p.spot=null; p.isoSpot=null; p.reactT=0;
+  }
+  const b=game.ball; fx(b); b.vx=-b.vx; b.vz=-b.vz; b.wx=-b.wx; b.wz=-b.wz; b.landX=-b.landX; b.landZ=L-b.landZ;
+  setFlip(!game.flip);
+}
+function ensureFrame(team){ if(game.full&&game.flip!==(team===1)) flipWorld(); }
+function setupInbound(team){
+  const b=game.ball; ensureFrame(team);
+  game.off=team; game.needClear=false; game.shotClock=24; game.dead=0; game.backT=0; endPlay();
+  const O=game.teams[team], D=game.teams[1-team];
+  const opos=[[1.2,26.6],[-5,22.5],[5,22],[-2.5,19.5],[2.8,18.5]];
+  O.forEach((p,i)=>resetP(p,opos[i][0],opos[i][1]));
+  D.forEach((p,i)=>{ const m=O[i]; resetP(p,m.x*0.75,clamp(m.z-7,4,16)); p.tx=p.x; p.tz=p.z; });
+  resetAssign();
+  giveBall(O[0]); O[0].decT=0.6; b.x=O[0].x; b.z=O[0].z; b.y=1;
+  if(team===0){ game.user=O[0]; game.defScheme[1]=pickCpuScheme(); }
+  else { if(!game.user||game.user.team!==0) game.user=game.teams[0][0]; game.pending[1]=pickCpuPlay(); }
+  game.refs.forEach((r,i)=>{ r.x=i?(game.flip?8.1:-8.1):2.5; r.z=i?20:-0.9; r.vx=r.vz=0; });
+  banner(TEAMS[team].name+' 发球',1.0);
+}
+function startQuarter(){
+  const q=game.quarter; game.gameClock=q>4?Math.min(60,game.qLen):game.qLen; game.clockOut=false; game.qBreak=false;
+  const starts=[0,1,1,0]; setupInbound(q<=4?starts[q-1]:(q%2));
+  banner(q>4?'加时赛 OT'+(q-4):'第'+q+'节',1.6); sWhistle();
+}
+function endQuarter(){
+  const b=game.ball; sBuzzer(); game.clockOut=false;
+  if(b.holder){ const h=b.holder; b.holder=null; b.vy=1; if(h.state==='move'){h.state='idle';h.mv=null;} }
+  b.state='dead'; endPlay();
+  const q=game.quarter;
+  if(q>=4&&game.score[0]!==game.score[1]){ game.over=true; game.dead=2.8; banner(TEAMS[game.score[0]>game.score[1]?0:1].name+' 赢得比赛!',2.8); return; }
+  game.quarter++; game.qBreak=true; game.dead=2.4;
+  banner(q===2?'半场结束':(q>=4?'平局，进入加时':'第'+q+'节结束'),2.2);
+}
+function fmtClock(t){ t=Math.max(0,t); if(t<10) return t.toFixed(1); const m=Math.floor(Math.ceil(t)/60), s2=Math.ceil(t)%60; return m+':'+(s2<10?'0':'')+s2; }
 function setupCheck(team){
   const b=game.ball; game.off=team; game.needClear=false; game.shotClock=24; game.dead=0; endPlay();
   const O=game.teams[team], D=game.teams[1-team];
@@ -534,7 +611,7 @@ function readInput(){
 }
 function clearEdges(){input.aDown=input.aUp=input.bDown=input.cDown=input.bUp=input.cUp=false;}
 const camS={fx:0,fz:6,R:{x:1,z:0},F:{x:0,z:-1}};
-function screenToWorld(sx,sy){ return {x:camS.R.x*sx-camS.F.x*sy, z:camS.R.z*sx-camS.F.z*sy}; }
+function screenToWorld(sx,sy){ const k=game.flip?-1:1; return {x:k*(camS.R.x*sx-camS.F.x*sy), z:k*(camS.R.z*sx-camS.F.z*sy)}; }
 
 // ===== gameplay =====
 const GATHER=0.14;
@@ -823,7 +900,7 @@ function fireMove(p){
 }
 function doGestureMove(p,mv){
   if(mv.type==='tap'){ mv={type:(p.animSp||0)<1.6?'jab':'inout',sx:0}; }
-  const side=mv.sx?{x:camS.R.x*mv.sx,z:camS.R.z*mv.sx}:null;
+  const side=mv.sx?screenToWorld(mv.sx,0):null;
   const dh=distHoop(p), sp=Math.hypot(p.vx,p.vz);
   const toward=sp>0.5?((RIM.x-p.x)*p.vx+(RIM.z-p.z)*p.vz)/((dh||1)*sp):0;
   if((mv.type==='cross'||mv.type==='btl'||mv.type==='btb')&&dh<3.6&&dh>0.9&&sp>2.2&&toward>0.35){ startLayup(p,side||{x:1,z:0}); return; }
@@ -893,11 +970,12 @@ function gain(p,how){
   if(how==='catch'){ if(p.team===0) game.user=p; return; }
   if(fromShot) p.stats.reb++;
   if(p.team!==game.off){
-    game.off=p.team; game.needClear=true; game.shotClock=24; endPlay(); resetAssign();
+    ensureFrame(p.team);
+    game.off=p.team; game.needClear=!game.full; game.shotClock=24; game.backT=0; endPlay(); resetAssign();
     if(p.team===0) game.defScheme[1]=pickCpuScheme(); else if(game.size>1) game.pending[1]=pickCpuPlay();
     if(how==='intercept'){ p.stats.stl++; floatText('抢断!',p.x,p.h+0.5,p.z,'#36d27a',18); }
     else if(fromShot) floatText('篮板',p.x,p.h+0.5,p.z,'#ffffff',15);
-    banner(TEAMS[p.team].name+' 球权 · 需清球',1.4);
+    banner(TEAMS[p.team].name+(game.full?' 球权':' 球权 · 需清球'),1.2);
   } else if(fromShot){
     if(wasTouched) game.shotClock=Math.max(game.shotClock,14);
     floatText('前场篮板',p.x,p.h+0.5,p.z,'#ffffff',15);
@@ -923,15 +1001,16 @@ function onMake(){
   floatText('+'+b.pts,RIM.x,RIM.y+0.7,RIM.z,s.team===0?'#ff8a8a':'#8ab8ff',26);
   game.cheer=Math.max(game.cheer,s.team===0?2.2:0.8); sCrowd(s.team===0?0.55:0.25,2.2);
   b.state='dead'; game.dead=1.9; game.next=1-s.team;
+  if(game.full&&game.clockOut){ game.clockOut=false; game.gameClock=0; game.pendEnd=true; }
   banner(s.name+(b.pts===3?' 三分命中':' 得分'),1.6);
-  if(game.score[s.team]>=21){ game.over=true; game.dead=2.6; banner(TEAMS[s.team].name+' 拿下比赛!',2.6); sBuzzer(); }
+  if(!game.full&&game.score[s.team]>=21){ game.over=true; game.dead=2.6; banner(TEAMS[s.team].name+' 拿下比赛!',2.6); sBuzzer(); }
 }
 
 // ===== tactics =====
 function callPlay(team,type){
   if(game.size<2||game.mode!=='game') return;
   const b=game.ball;
-  if(game.off===team&&b.holder&&b.holder.team===team&&!game.needClear) startPlay(team,type);
+  if(game.off===team&&b.holder&&b.holder.team===team&&!game.needClear&&(!game.full||b.holder.z<11)) startPlay(team,type);
   else { game.pending[team]=type; if(team===0) banner('下回合执行：'+PLAYS[type],1.2); }
 }
 function startPlay(team,type){
@@ -1041,6 +1120,11 @@ function handlerAI(p,dt){
     setDesire(p,RIM.x+Math.sin(ang)*r,clamp(RIM.z+Math.cos(ang)*r,4,13),true);
     const n=nearestOpp(p); if(n.d<1.3&&Math.random()<dt*0.8) startMove(p,Math.random()<0.5?'btb':'cross',null);
     return;
+  }
+  if(game.full&&p.z>13.2){   // backcourt: push on the break, or walk it up and set up
+    const ahead=opponents(p).filter(o=>o.z<p.z-0.5).length;
+    if(ahead<=1&&!(game.size>1&&ahead===1&&nearestOpp(p).d<2)){ p.mode='drive'; }
+    else { setDesire(p,clamp(p.x*0.6,-4,4),9.6,ahead<=2); if(nearestOpp(p).d<1.3&&Math.random()<dt*0.7) startMove(p,Math.random()<0.5?'btb':'cross',null); p.holdT=Math.min(p.holdT,0.3); return; }
   }
   const clockLow=game.shotClock<5;
   if(pl&&!clockLow){
@@ -1153,12 +1237,19 @@ function offBallAI(p,dt){
   setDesire(p,p.spot.x,p.spot.z,d>3||p.spot.cut);
 }
 
-const ZONE_HOME=[{x:-2.7,z:7.4},{x:2.7,z:7.4},{x:0,z:2.9}];
+const ZONE_HOME3=[{x:-2.7,z:7.4},{x:2.7,z:7.4},{x:0,z:2.9}];
+const ZONE_HOME5=[{x:-2.6,z:7.6},{x:2.6,z:7.6},{x:0,z:3.0},{x:-4.6,z:2.8},{x:4.6,z:2.8}];   // 2-3 zone
+let ZONE_HOME=ZONE_HOME3;
 function zoneMan(p,holder){
-  const off=game.teams[game.off];
-  const inZone=o=>p.idx===2?(o.z<=4.3&&Math.abs(o.x)<4.5):((o.z>4.3||Math.abs(o.x)>=4.5)&&(p.idx===0?o.x<0:o.x>=0));
+  const H=game.size>=5?ZONE_HOME5:ZONE_HOME3, home=H[p.idx]; if(!home) return manOf(p);
   let best=null,bd=1e9;
-  for(const o of off){ if(!inZone(o)) continue; const d=(o===holder?-5:0)+Math.hypot(o.x-ZONE_HOME[p.idx].x,o.z-ZONE_HOME[p.idx].z); if(d<bd){bd=d;best=o;} }
+  for(const o of game.teams[game.off]){
+    // each defender takes whoever is closest to his area; the ball handler is picked up from further out
+    const d=Math.hypot(o.x-home.x,o.z-home.z), lim=o===holder?4.8:3.8; if(d>lim) continue;
+    let owner=true; for(const q of game.teams[p.team]){ if(q===p||!H[q.idx]) continue; if(Math.hypot(o.x-H[q.idx].x,o.z-H[q.idx].z)<d-0.2){owner=false;break;} }
+    if(!owner&&o!==holder) continue;
+    const sc=d-(o===holder?2:0); if(sc<bd){bd=sc;best=o;}
+  }
   return best;
 }
 function defenseAI(p,dt){
@@ -1170,7 +1261,7 @@ function defenseAI(p,dt){
   if(p.reactT<=0){
     p.reactT=react*(1.25-p.a.def/200)*rand(0.7,1.3);
     let tx,tz;
-    if(!man){ const hm=ZONE_HOME[p.idx]||{x:0,z:5}; tx=hm.x+(holder?(holder.x-hm.x)*0.25:0); tz=hm.z+(holder?(holder.z-hm.z)*0.2:0); }
+    if(!man){ const hm=(game.size>=5?ZONE_HOME5:ZONE_HOME3)[p.idx]||{x:0,z:5}; tx=hm.x+(holder?(holder.x-hm.x)*0.25:0); tz=hm.z+(holder?(holder.z-hm.z)*0.2:0); }
     else {
       const hasBall=holder===man;
       const hx=RIM.x-man.x,hz=RIM.z-man.z,hd=Math.hypot(hx,hz)||1;
@@ -1325,7 +1416,7 @@ function movePlayer(p,dt){
     p.x+=p.vx*dt; p.z+=p.vz*dt;
   }
   if(p.x<-7.3){p.x=-7.3;p.vx=Math.max(0,p.vx);} if(p.x>7.3){p.x=7.3;p.vx=Math.min(0,p.vx);}
-  if(p.z<0.3){p.z=0.3;p.vz=Math.max(0,p.vz);} if(p.z>13.7){p.z=13.7;p.vz=Math.min(0,p.vz);}
+  const zMax=courtLen()-0.3; if(p.z<0.3){p.z=0.3;p.vz=Math.max(0,p.vz);} if(p.z>zMax){p.z=zMax;p.vz=Math.min(0,p.vz);}
 }
 function resolveCollisions(){
   const P=game.players;
@@ -1412,7 +1503,7 @@ function updateBall(dt){
   if(ev.rim||ev.board) b.touched=true;
   if(ev.through&&b.state==='shot'&&!b.scored) onMake();
   if(ev.floor&&(b.state==='shot'||b.state==='pass')) b.state='loose';
-  if(game.mode==='game'&&b.state!=='dead'&&b.y<0.6&&(b.x<COURT.x0-0.05||b.x>COURT.x1+0.05||b.z<-0.05||b.z>COURT.z1+0.05)){ turnover(1-b.lastTeam,'出界'); return; }
+  if(game.mode==='game'&&b.state!=='dead'&&b.y<0.6&&(b.x<COURT.x0-0.05||b.x>COURT.x1+0.05||b.z<-0.05||b.z>courtLen()+0.05)){ turnover(1-b.lastTeam,'出界'); return; }
   if(b.state==='dead') return;
   if(b.state==='pass'){
     for(const d of game.players){
@@ -1465,7 +1556,7 @@ function estimateLanding(){
   const b=game.ball, s={x:b.x,y:b.y,z:b.z,vx:b.vx,vy:b.vy,vz:b.vz,wx:b.wx,wy:b.wy,wz:b.wz};
   let t=0; const ev={};
   while(t<2.2){ ballStep(s,1/120,ev); t+=1/120; if(s.vy<0&&s.y<2.3) break; }
-  b.landX=clamp(s.x,-7.2,7.2); b.landZ=clamp(s.z,0.4,13.5);
+  b.landX=clamp(s.x,-7.2,7.2); b.landZ=clamp(s.z,0.4,courtLen()-0.5);
 }
 function rules(dt){
   const b=game.ball;
@@ -1479,21 +1570,38 @@ function rules(dt){
     } else game.retT=0;
     return;
   }
-  if(game.dead>0){ game.dead-=dt; if(game.dead<=0){ if(game.over) endGame(); else setupCheck(game.next); } return; }
+  if(game.pendEnd&&game.dead>0){ game.pendEnd=false; game.dead=0.01; game.qEndAfter=true; }
+  if(game.qEndAfter&&game.dead<=0.01){ game.qEndAfter=false; game.dead=0; endQuarter(); return; }
+  if(game.dead>0){ game.dead-=dt; if(game.dead<=0){ if(game.over) endGame(); else if(game.full&&game.qBreak) startQuarter(); else if(game.full) setupInbound(game.next); else setupCheck(game.next); } return; }
+  if(game.full){
+    if(b.state!=='dead'){ game.gameClock-=dt;
+      if(game.gameClock<=0){ game.gameClock=0;
+        if(b.state==='shot'&&!b.touched&&!b.scored) game.clockOut=true;   // shot in the air at the horn still counts
+        else { endQuarter(); return; } }
+    }
+    if(game.clockOut&&(b.state==='held'||b.state==='loose'||b.touched&&b.y<2)){ endQuarter(); return; }
+    const h=b.holder;
+    if(h&&h.team===game.off&&b.state==='held'){
+      if(h.z>14){ game.backT+=dt; if(game.backT>8){ sWhistle(); turnover(1-game.off,'8秒违例'); return; } }
+      else { game.backT=-99; const pend=game.pending[game.off]; if(pend&&h.z<11){ game.pending[game.off]=null; startPlay(game.off,pend); } }
+    }
+  }
   const running=b.state==='held'||b.state==='pass'||(b.state==='loose'&&!b.fromShot);
-  if(running){ game.shotClock-=dt; if(game.shotClock<=0){ game.shotClock=0; sBuzzer(); turnover(1-game.off,'24秒违例'); return; } }
+  const scOn=!game.full||game.gameClock>game.shotClock;
+  if(running&&scOn){ game.shotClock-=dt; if(game.shotClock<=0){ game.shotClock=0; sBuzzer(); turnover(1-game.off,'24秒违例'); return; } }
   if(game.needClear&&b.holder&&b.holder.team===game.off&&isThree(b.holder.x,b.holder.z)&&(distHoop(b.holder)>THREE_R+0.15||b.holder.z<CORNER_Z)){
     game.needClear=false; if(b.holder.team===0) floatText('已清球',b.holder.x,b.holder.h+0.6,b.holder.z,'#36d27a',15);
     const pend=game.pending[game.off]; if(pend){ game.pending[game.off]=null; startPlay(game.off,pend); }
   }
   updatePlay(dt);
 }
+function updateRefsFull(){}
 function updateRefs(dt){
   const b=game.ball; if(!game.refs||!b) return;
   game.refs.forEach((r,i)=>{
     let tx,tz;
     if(i===0){ tx=clamp(b.x*0.7,-6,6); if(Math.abs(tx)<1.7) tx=(tx<0?-1.7:1.7); tz=-0.9; }   // lead official on the baseline
-    else { tx=-8.1; tz=clamp(b.z+1.5,2.5,13); }                                         // trail official on the far sideline
+    else { tx=game.flip?8.1:-8.1; tz=clamp(b.z+1.5,2.5,courtLen()-1); }                                         // trail official on the far sideline
     const dx=tx-r.x, dz=tz-r.z, d=Math.hypot(dx,dz), vmax=Math.min(4.2,d*2.2);
     const tvx=d>0.05?dx/d*vmax:0, tvz=d>0.05?dz/d*vmax:0, k=1-Math.exp(-dt*5);
     r.vx+=(tvx-r.vx)*k; r.vz+=(tvz-r.vz)*k; r.x+=r.vx*dt; r.z+=r.vz*dt;
@@ -1537,6 +1645,7 @@ function updateLabels(){
 let renderer=null, scene=null, camera3=null, ballMesh=null, netPosAttr=null, rimMesh=null, boardGroup=null, dirLight=null;
 let clockCanvas=null, clockTex=null, lastClockVal=-1, crowdBodies=null;
 const crowdData=[], ledTex=[], rings=[];
+let crowdMeshes=[];
 let _up,_v,_p,_bq,_ax;
 const std=(c,r=0.7,m=0)=>new THREE.MeshStandardMaterial({color:new THREE.Color(c).convertSRGBToLinear(),roughness:r,metalness:m});
 function canvasTex(c){ const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t; }
@@ -1554,20 +1663,27 @@ function init3D(){
   dirLight.castShadow=true; const sc=dirLight.shadow.camera; sc.left=-12; sc.right=12; sc.top=14; sc.bottom=-14; sc.near=2; sc.far=50;
   dirLight.shadow.mapSize.set(2048,2048); dirLight.shadow.bias=-0.0005; scene.add(dirLight);
   const fill=new THREE.DirectionalLight(0xbfd4ff,0.35); fill.position.set(-10,12,20); scene.add(fill);
-  buildCourt(); buildArena(); buildHoop(); buildBall(); buildExtras();
+  simRoot=new THREE.Group(); scene.add(simRoot);
+  buildCourt(); buildArena();
+  const hA=new THREE.Group(); scene.add(hA); HOOPM.push(buildHoop(hA));
+  const hB=new THREE.Group(); hB.rotation.y=Math.PI; hB.position.z=28; scene.add(hB); HOOPM.push(buildHoop(hB));
+  ({rimMesh,boardGroup,netPosAttr}=HOOPM[0]);
+  buildBall(); buildExtras();
   try{ const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(buildEnvScene(),0.035).texture; pm.dispose(); }catch(e){ console.warn(e); }
   const zm=()=>new THREE.MeshBasicMaterial({color:0x36d27a,transparent:true,opacity:0.3,depthWrite:false,side:THREE.DoubleSide});
   zoneFan=new THREE.Mesh(new THREE.RingGeometry(0.5,ZONE_R,36,1,-ZONE_HALF,ZONE_HALF*2),zm()); zoneFan.renderOrder=2;
   zoneEdge=new THREE.Mesh(new THREE.RingGeometry(ZONE_R-0.06,ZONE_R,48,1,-ZONE_HALF,ZONE_HALF*2),zm()); zoneEdge.material.opacity=0.85;
   zoneBack=new THREE.Mesh(new THREE.RingGeometry(0.5,ZONE_BACK,36,1,ZONE_HALF,Math.PI*2-ZONE_HALF*2),zm()); zoneBack.material.opacity=0.14;
-  for(const m of [zoneFan,zoneEdge,zoneBack]){ m.position.y=0.011; m.visible=false; scene.add(m); }
-  for(let i=0;i<3;i++){ const m=new THREE.Mesh(new THREE.RingGeometry(0.42,0.52,40),new THREE.MeshBasicMaterial({color:0xffd34d,transparent:true,opacity:0.9,depthWrite:false})); m.rotation.x=-Math.PI/2; m.position.y=0.012; m.visible=false; scene.add(m); rings.push(m); }
+  for(const m of [zoneFan,zoneEdge,zoneBack]){ m.position.y=0.011; m.visible=false; simRoot.add(m); }
+  for(let i=0;i<3;i++){ const m=new THREE.Mesh(new THREE.RingGeometry(0.42,0.52,40),new THREE.MeshBasicMaterial({color:0xffd34d,transparent:true,opacity:0.9,depthWrite:false})); m.rotation.x=-Math.PI/2; m.position.y=0.012; m.visible=false; simRoot.add(m); rings.push(m); }
 }
+function setCrowd(on){ game.crowdOn=on; crowdMeshes.forEach(m=>m.visible=on); }
 function setQuality(q){
   game.quality=q; if(!renderer) return;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,q?2:1));
   const ms=q?2048:1024; dirLight.shadow.mapSize.set(ms,ms);
   if(dirLight.shadow.map){ dirLight.shadow.map.dispose(); dirLight.shadow.map=null; }
+  if(renderer.shadowMap.enabled!==!!q){ renderer.shadowMap.enabled=!!q; scene.traverse(o=>{ if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); } }); }
   resize();
 }
 function buildCourt(){
@@ -1625,15 +1741,15 @@ function ledCanvas(w,h,text,col){
 function buildArena(){
   const standMat=std('#1b1e27',0.95), stepMat=std('#232733',0.9);
   const rows=11, people=[];
-  for(let r=0;r<rows;r++){
-    const hgt=0.5*(r+1), z=-3.6-r*0.85;
+  for(const end of [0,1]) for(let r=0;r<rows;r++){
+    const hgt=0.5*(r+1), z=end?31.6+r*0.85:-3.6-r*0.85;
     const m=new THREE.Mesh(new THREE.BoxGeometry(32,hgt,0.85),r%2?standMat:stepMat); m.position.set(0,hgt/2,z); scene.add(m);
     for(let x=-15;x<=15;x+=0.6) if(Math.random()>0.08) people.push([x+rand(-0.08,0.08),hgt,z]);
   }
   for(const s of [-1,1]) for(let r=0;r<rows;r++){
     const hgt=0.5*(r+1), x=s*(10.6+r*0.85);
-    const m=new THREE.Mesh(new THREE.BoxGeometry(0.85,hgt,40),r%2?standMat:stepMat); m.position.set(x,hgt/2,12); scene.add(m);
-    for(let z=-7.5;z<=31.5;z+=0.62) if(Math.random()>0.08) people.push([x,hgt,z+rand(-0.08,0.08)]);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(0.85,hgt,44),r%2?standMat:stepMat); m.position.set(x,hgt/2,14); scene.add(m);
+    for(let z=-7.5;z<=35.5;z+=0.62) if(Math.random()>0.08) people.push([x,hgt,z+rand(-0.08,0.08)]);
   }
   const wall=std('#0d0f15',0.95);
   const w1=new THREE.Mesh(new THREE.BoxGeometry(60,12,1),wall); w1.position.set(0,11,-13.5); scene.add(w1);
@@ -1653,9 +1769,11 @@ function buildArena(){
     crowdData.push({x:q[0],y:q[1],z:q[2],ph:Math.random()*6.28,ry});
   });
   crowdBodies.userData.heads=heads; scene.add(crowdBodies); scene.add(heads);
-  const arms=new THREE.InstancedMesh(new THREE.BoxGeometry(0.5,0.32,0.07),std('#c79a78',0.8),people.length); const z0=new THREE.Object3D(); z0.scale.set(0.001,0.001,0.001); z0.updateMatrix(); for(let i=0;i<people.length;i++) arms.setMatrixAt(i,z0.matrix); crowdBodies.userData.arms=arms; scene.add(arms);
+  const arms=new THREE.InstancedMesh(new THREE.BoxGeometry(0.5,0.32,0.07),std('#c79a78',0.8),people.length); const z0=new THREE.Object3D(); z0.scale.set(0.001,0.001,0.001); z0.updateMatrix(); for(let i=0;i<people.length;i++) arms.setMatrixAt(i,z0.matrix); crowdBodies.userData.arms=arms; scene.add(arms); crowdMeshes=[crowdBodies,heads,arms];
   const t1=canvasTex(ledCanvas(2048,64,'COURTSIDE 3V3   ·   FIRST TO 21','#ff7a1a')); t1.wrapS=THREE.RepeatWrapping; ledTex.push(t1);
   const led1=new THREE.Mesh(new THREE.BoxGeometry(18,0.9,0.15),new THREE.MeshBasicMaterial({map:t1})); led1.position.set(0,0.45,-2.75); scene.add(led1);
+  const led1b=led1.clone(); led1b.position.z=30.75; led1b.rotation.y=Math.PI; scene.add(led1b);
+  const w1b=new THREE.Mesh(new THREE.BoxGeometry(60,12,1),std('#0d0f15',0.95)); w1b.position.set(0,11,41.5); scene.add(w1b);
   const t2=canvasTex(ledCanvas(2048,64,'赤焰 VS 苍狼   ·   COURTSIDE','#36d27a')); t2.wrapS=THREE.RepeatWrapping; ledTex.push(t2);
   for(const s of [-1,1]){ const led2=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.9,26),new THREE.MeshBasicMaterial({map:t2})); led2.position.set(s*9.6,0.45,12); scene.add(led2); }
   const table=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.8,6),std('#14161d',0.6)); table.position.set(-8.8,0.4,14); table.castShadow=true; scene.add(table);
@@ -1672,7 +1790,7 @@ function buildEnvScene(){
   box(8,3,0.2,new THREE.Color().setRGB(2.4,2.4,2.6),0,11,8);
   return s;
 }
-let zoneFan=null, zoneEdge=null, zoneBack=null;
+let zoneFan=null, zoneEdge=null, zoneBack=null, simRoot=null; const HOOPM=[];
 let boardLedMat=null, jumboCanvas=null, jumboTex=null, jumboKey='';
 function buildExtras(){
   // centre-hung scoreboard over mid-court
@@ -1686,11 +1804,11 @@ function buildExtras(){
   // LED strip around the backboard (lights red at the shot-clock buzzer)
   boardLedMat=new THREE.MeshBasicMaterial({color:0xeef3ff});
   const bw=BOARD.x1-BOARD.x0, by=(BOARD.y0+BOARD.y1)/2, bh=BOARD.y1-BOARD.y0;
-  for(const [w,h2,x,y] of [[bw+0.02,0.022,0,BOARD.y1+0.005],[0.022,bh,BOARD.x0-0.005,by],[0.022,bh,BOARD.x1+0.005,by]]){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h2,0.04),boardLedMat); m.position.set(x,y,BOARD.z-0.015); boardGroup.add(m); }
+  for(const H of HOOPM) for(const [w,h2,x,y] of [[bw+0.02,0.022,0,BOARD.y1+0.005],[0.022,bh,BOARD.x0-0.005,by],[0.022,bh,BOARD.x1+0.005,by]]){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h2,0.04),boardLedMat); m.position.set(x,y,BOARD.z-0.015); H.boardGroup.add(m); }
   // photographers kneeling on the baseline
   const dark=std('#1b1d24',0.8), camM=std('#0c0c0e',0.4,0.3);
-  for(const x of [-6.2,-4.4,4.6,6.4]){
-    const g=new THREE.Group(); g.position.set(x,0,-1.35); g.rotation.y=Math.atan2(-x*0.3,4); scene.add(g);
+  for(const [x,end] of [[-6.2,0],[-4.4,0],[4.6,0],[6.4,0],[-5.2,1],[5.6,1]]){
+    const g=new THREE.Group(); g.position.set(x,0,end?29.35:-1.35); g.rotation.y=Math.atan2(-x*0.3,4)+(end?Math.PI:0); scene.add(g);
     const body=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.62,0.34),dark); body.position.y=0.62; body.rotation.x=0.25; g.add(body);
     const legs=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.3,0.5),dark); legs.position.set(0,0.15,0.08); g.add(legs);
     const head=new THREE.Mesh(new THREE.SphereGeometry(0.11,12,10),std(x>0?'#c58f68':'#e0b18a',0.6)); head.position.set(0,1.05,0.1); g.add(head);
@@ -1709,18 +1827,20 @@ function buildExtras(){
 }
 function updateExtras(){
   if(!jumboCanvas) return;
-  const key=game.mode==='game'?game.score.join(':')+'|'+Math.ceil(game.shotClock):'p';
+  const key=game.mode==='game'?game.score.join(':')+'|'+Math.ceil(game.shotClock)+'|'+(game.full?Math.ceil(game.gameClock)+'q'+game.quarter:''):'p';
   if(key!==jumboKey){ jumboKey=key; const g=jumboCanvas.getContext('2d');
     g.fillStyle='#05060a'; g.fillRect(0,0,512,256);
     g.fillStyle='#ff7a1a'; g.fillRect(0,0,512,40); g.fillStyle='#fff'; g.font='700 28px Oswald, Arial Narrow, sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('COURTSIDE 3V3',256,21);
     if(game.mode==='game'){ g.font='700 110px Oswald, Arial Narrow, sans-serif'; g.fillStyle=TEAMS[0].color; g.fillText(game.score[0],130,150); g.fillStyle=TEAMS[1].color; g.fillText(game.score[1],382,150);
-      g.fillStyle='#ffb02e'; g.font='700 56px Oswald, monospace'; g.fillText(Math.ceil(game.shotClock),256,150); g.fillStyle='#9aa3b2'; g.font='700 22px '+FONT; g.fillText(TEAMS[0].name+'          '+TEAMS[1].name,256,228); }
+      g.fillStyle='#ffb02e'; g.font='700 56px Oswald, monospace'; g.fillText(game.full?fmtClock(game.gameClock):Math.ceil(game.shotClock),256,150);
+      if(game.full){ g.font='700 26px Oswald, monospace'; g.fillStyle='#e8eaf0'; g.fillText(game.quarter>4?'OT':'Q'+game.quarter,256,94); } g.fillStyle='#9aa3b2'; g.font='700 22px '+FONT; g.fillText(TEAMS[0].name+'          '+TEAMS[1].name,256,228); }
     else { g.font='700 60px Oswald, Arial Narrow, sans-serif'; g.fillStyle='#fff'; g.fillText('PRACTICE',256,150); }
     jumboTex.needsUpdate=true; }
   if(boardLedMat){ const red=game.mode==='game'&&(game.shotClock<=0.05||game.over&&game.dead>0); boardLedMat.color.set(red?0xff2020:0xeef3ff); }
 }
-function buildHoop(){
+function buildHoop(scene){
   const white=std('#f2f4f8',0.4), dark=std('#20232c',0.6), padMat=std('#7d1220',0.7);
+  let rimMesh,boardGroup,netPosAttr;
   const base=new THREE.Mesh(new THREE.BoxGeometry(1.3,1.1,1.5),padMat); base.position.set(0,0.55,-2.55); base.castShadow=true; scene.add(base);
   const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,1,12),dark); placeSeg(pole,V(0,1.05,-2.3),V(0,3.62,-1.85)); pole.castShadow=true; scene.add(pole);
   const arm=new THREE.Mesh(new THREE.BoxGeometry(0.16,1,0.16),dark); placeSeg(arm,V(0,3.55,-1.88),V(0,3.42,1.18)); arm.castShadow=true; scene.add(arm);
@@ -1738,8 +1858,9 @@ function buildHoop(){
   const ng=new THREE.BufferGeometry(); netPosAttr=new THREE.BufferAttribute(new Float32Array(96*3),3); ng.setAttribute('position',netPosAttr);
   const net=new THREE.LineSegments(ng,new THREE.LineBasicMaterial({color:0xf4f4f4,transparent:true,opacity:0.9})); net.frustumCulled=false; scene.add(net);
   const scb=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.36,0.24),std('#0a0b10',0.5)); scb.position.set(0,BOARD.y1+0.22,BOARD.z-0.14); boardGroup.add(scb);
-  clockCanvas=document.createElement('canvas'); clockCanvas.width=128; clockCanvas.height=64; clockTex=canvasTex(clockCanvas);
+  if(!clockCanvas){ clockCanvas=document.createElement('canvas'); clockCanvas.width=128; clockCanvas.height=64; clockTex=canvasTex(clockCanvas); }
   const face=new THREE.Mesh(new THREE.PlaneGeometry(0.66,0.32),new THREE.MeshBasicMaterial({map:clockTex})); face.position.set(0,BOARD.y1+0.22,BOARD.z-0.015); boardGroup.add(face);
+  return {rimMesh,boardGroup,netPosAttr};
 }
 function buildBall(){
   const c=document.createElement('canvas'); c.width=512; c.height=256; const g=c.getContext('2d');
@@ -1750,14 +1871,14 @@ function buildBall(){
   for(const x of [128,384]){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,256); g.stroke(); }
   for(const cx of [0,256]){ g.beginPath(); for(let y=0;y<=256;y+=4){ const x=cx+Math.sin(y/256*Math.PI)*80; y?g.lineTo(x,y):g.moveTo(x,y);} g.stroke(); }
   ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BALL_R,32,20),new THREE.MeshStandardMaterial({map:canvasTex(c),roughness:0.75}));
-  ballMesh.castShadow=true; scene.add(ballMesh);
+  ballMesh.castShadow=true; simRoot.add(ballMesh);
 }
 function placeSeg(m,A,B){ _v.set(B.x-A.x,B.y-A.y,B.z-A.z); const L=_v.length(); m.position.set((A.x+B.x)/2,(A.y+B.y)/2,(A.z+B.z)/2); m.scale.set(1,L||1e-4,1); if(L>1e-6) m.quaternion.setFromUnitVectors(_up,_v.divideScalar(L)); }
 // ----- player models -----
 function strideAmp(p,sp){ const S=p.h/2; return Math.max(0.1*S,Math.min(0.44*S,sp*0.105)); }
 function profileGeo(prof,S,seg=14){ return new THREE.LatheGeometry(prof.map(q=>new THREE.Vector2(q[1]*S,q[0]-0.5)),seg,-Math.PI/2,Math.PI*2); }
-const PROF={UA:[[0,0.07],[0.22,0.076],[0.5,0.069],[0.8,0.056],[1,0.051]],FA:[[0,0.053],[0.25,0.058],[0.7,0.045],[1,0.038]],
-  TH:[[0,0.096],[0.3,0.102],[0.65,0.087],[0.9,0.069],[1,0.064]],CA:[[0,0.063],[0.2,0.073],[0.38,0.074],[0.72,0.05],[1,0.043]],
+const PROF={UA:[[0,0.078],[0.22,0.085],[0.5,0.077],[0.8,0.061],[1,0.055]],FA:[[0,0.058],[0.25,0.064],[0.7,0.048],[1,0.04]],
+  TH:[[0,0.108],[0.3,0.114],[0.65,0.096],[0.9,0.075],[1,0.068]],CA:[[0,0.066],[0.2,0.08],[0.38,0.082],[0.72,0.054],[1,0.045]],
   SL:[[0,0.122],[1,0.114]]};
 function jerseyTex(p,T){
   const c=document.createElement('canvas'); c.width=512; c.height=256; const g=c.getContext('2d');
@@ -1799,33 +1920,59 @@ function makeShoe(S,T,white){
   const collar=new THREE.Mesh(new THREE.CylinderGeometry(0.056*S,0.062*S,0.05*S,12),std('#16171c',0.6)); collar.position.set(0,0.115*S,-0.04*S); s.add(collar);
   return s;
 }
+function faceTex(p){
+  const c=document.createElement('canvas'); c.width=512; c.height=256; const g=c.getContext('2d'); g.scale(2,2);
+  const sk=new THREE.Color(p.skin), dk=sk.clone().multiplyScalar(0.72).getStyle(), dk2=sk.clone().multiplyScalar(0.55).getStyle(), hl=sk.clone().lerp(new THREE.Color('#ffffff'),0.18).getStyle();
+  g.fillStyle=p.skin; g.fillRect(0,0,256,128);
+  const cx=64;   // front of the head (u=0.25)
+  let gr=g.createRadialGradient(cx,62,4,cx,62,40); gr.addColorStop(0,hl); gr.addColorStop(1,p.skin); g.fillStyle=gr; g.fillRect(cx-40,20,80,80);
+  g.fillStyle='rgba(0,0,0,.10)'; g.beginPath(); g.ellipse(cx,52,26,7,0,0,Math.PI*2); g.fill();      // brow-ridge shadow
+  g.strokeStyle=p.hair; g.lineCap='round';
+  for(const s of [-1,1]){
+    g.lineWidth=3.2; g.beginPath(); g.moveTo(cx+s*6,48); g.quadraticCurveTo(cx+s*14,43.5,cx+s*23,47.5); g.stroke();   // brows
+    const ex=cx+s*14.5, ey=56.5;
+    g.fillStyle=dk; g.beginPath(); g.ellipse(ex,ey+0.5,8,4.6,0,0,Math.PI*2); g.fill();                              // eye socket
+    g.fillStyle='#f3eee8'; g.beginPath(); g.moveTo(ex-6.5,ey); g.quadraticCurveTo(ex,ey-4.2,ex+6.5,ey); g.quadraticCurveTo(ex,ey+3.4,ex-6.5,ey); g.fill();
+    g.fillStyle='#3b2516'; g.beginPath(); g.arc(ex+s*0.3,ey,2.7,0,Math.PI*2); g.fill();
+    g.fillStyle='#0b0706'; g.beginPath(); g.arc(ex+s*0.3,ey,1.3,0,Math.PI*2); g.fill();
+    g.fillStyle='rgba(255,255,255,.85)'; g.beginPath(); g.arc(ex+s*0.3+0.9,ey-1,0.7,0,Math.PI*2); g.fill();
+    g.strokeStyle='#1a100a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(ex-6.8,ey); g.quadraticCurveTo(ex,ey-4.8,ex+6.8,ey); g.stroke();   // upper lid / lashes
+    g.strokeStyle=p.hair;
+  }
+  g.strokeStyle=dk2; g.lineWidth=1.4; g.beginPath(); g.moveTo(cx-2.5,58); g.quadraticCurveTo(cx-4.5,68,cx-4,73); g.stroke();   // nose side
+  g.fillStyle=dk2; for(const s of [-1,1]){ g.beginPath(); g.ellipse(cx+s*3.2,74,1.8,1.1,0,0,Math.PI*2); g.fill(); }               // nostrils
+  g.fillStyle='rgba(0,0,0,.08)'; for(const s of [-1,1]){ g.beginPath(); g.ellipse(cx+s*19,72,7,9,0,0,Math.PI*2); g.fill(); }     // cheekbone shading
+  const lip=sk.clone().multiplyScalar(0.62).lerp(new THREE.Color('#8a3b32'),0.25).getStyle();
+  g.fillStyle=lip; g.beginPath(); g.moveTo(cx-8,82); g.quadraticCurveTo(cx-3,79.5,cx,80.8); g.quadraticCurveTo(cx+3,79.5,cx+8,82); g.quadraticCurveTo(cx,83,cx-8,82); g.fill();
+  g.beginPath(); g.moveTo(cx-7.5,82.3); g.quadraticCurveTo(cx,88,cx+7.5,82.3); g.fill();
+  g.strokeStyle='rgba(30,10,8,.6)'; g.lineWidth=0.9; g.beginPath(); g.moveTo(cx-8,82.2); g.quadraticCurveTo(cx,83.6,cx+8,82.2); g.stroke();
+  g.fillStyle='rgba(0,0,0,.07)'; g.beginPath(); g.ellipse(cx,93,9,3,0,0,Math.PI*2); g.fill();     // chin shadow
+  if(p.beard){ g.fillStyle=p.hair; g.globalAlpha=0.55; for(let i=0;i<900;i++){ const a=Math.random()*Math.PI, r=12+Math.random()*16; const x=cx+Math.cos(a)*r*1.25, y=78+Math.sin(a)*r*0.9; if(Math.abs(x-cx)<9&&y<86&&y>79) continue; g.fillRect(x,y,1,1.4); } g.globalAlpha=1; }
+  return canvasTex(c);
+}
 function makeHead(p,T,hr,skin,hairM,trimM){
   const hp=new THREE.Group(); hp.rotation.order='YXZ';
   const white=std('#f6f3ee',0.3), eyeM=std('#1a120c',0.3), lipM=std(new THREE.Color(p.skin).multiplyScalar(0.62).getStyle(),0.6);
   const M=(geo,mat,pos,scl,sh)=>{const m=new THREE.Mesh(geo,mat); m.position.set(pos[0],pos[1],pos[2]); if(scl) m.scale.set(scl[0],scl[1],scl[2]); m.castShadow=!!sh; hp.add(m); return m;};
   const sg=r=>new THREE.SphereGeometry(r,18,14);
-  M(sg(hr),skin,[0,0,0],[0.9,1.08,1.0],true);
-  M(sg(hr*0.7),skin,[0,-0.48*hr,0.2*hr],[0.95,0.75,0.95]);
-  for(const s of [-1,1]){
-    M(sg(hr*0.24),skin,[s*0.87*hr,-0.06*hr,-0.04*hr],[0.45,1,0.8]);
-    M(sg(hr*0.12),white,[s*0.33*hr,0.06*hr,0.85*hr]);
-    M(sg(hr*0.065),eyeM,[s*0.33*hr,0.06*hr,0.95*hr]);
-    const br=M(new THREE.BoxGeometry(0.32*hr,0.07*hr,0.08*hr),hairM,[s*0.33*hr,0.24*hr,0.9*hr]); br.rotation.z=s*0.12;
-  }
-  M(sg(hr*0.16),skin,[0,-0.14*hr,0.98*hr],[0.8,1,1]);
-  M(new THREE.BoxGeometry(0.36*hr,0.055*hr,0.05*hr),lipM,[0,-0.5*hr,0.87*hr]);
+  const faceM=new THREE.MeshStandardMaterial({map:faceTex(p),roughness:0.5});
+  M(new THREE.SphereGeometry(hr,28,20),faceM,[0,0,0],[0.9,1.12,1.0],true);                                  // skull with painted face
+  M(sg(hr*0.42),skin,[0,-0.78*hr,0.36*hr],[1.05,0.7,0.85]);                                                    // chin / jaw line
+  for(const s of [-1,1]) M(sg(hr*0.24),skin,[s*0.86*hr,-0.04*hr,-0.04*hr],[0.42,1,0.78]);                      // ears
+  const nose=M(new THREE.ConeGeometry(hr*0.13,hr*0.34,10),skin,[0,-0.1*hr,0.98*hr],[1,1,0.8]); nose.rotation.x=0.25; // nose bridge
+  M(sg(hr*0.12),skin,[0,-0.26*hr,1.0*hr],[1.25,0.8,0.9]);                                                      // nose tip
   const st=p.style||'short';
   if(st!=='bald'){
     const r=hr*(st==='afro'?1.3:st==='short'?1.07:1.03), tl=Math.PI*(st==='afro'?0.62:0.53);
-    const cap=M(new THREE.SphereGeometry(r,20,12,0,Math.PI*2,0,tl),hairM,[0,st==='afro'?0.16*hr:0.03*hr,-0.04*hr],[0.95,st==='afro'?0.95:1,1],true); cap.rotation.x=-0.34;
+    const cap=M(new THREE.SphereGeometry(r,20,12,0,Math.PI*2,0,tl),hairM,[0,st==='afro'?0.18*hr:0.05*hr,-0.04*hr],[0.96,st==='afro'?1.06:1.13,1.03],true); cap.rotation.x=-0.34;
   }
   if(p.beard){ const bd=M(new THREE.SphereGeometry(hr*0.98,18,10,Math.PI/2-1.25,2.5,Math.PI*0.56,Math.PI*0.3),hairM,[0,-0.02*hr,0.02*hr],[0.95,1.08,1.04]); bd.rotation.x=0.05; }
-  if(p.band){ const band=M(new THREE.CylinderGeometry(hr*1.0,hr*1.0,hr*0.28,18,1,true),trimM,[0,0.34*hr,-0.02*hr],[0.93,1,1.03]); band.rotation.x=-0.22; }
+  if(p.band){ const band=M(new THREE.CylinderGeometry(hr*1.0,hr*1.0,hr*0.28,18,1,true),trimM,[0,0.38*hr,-0.02*hr],[0.95,1,1.06]); band.rotation.x=-0.22; }
   return hp;
 }
 function makeRig(p){
   const T=TEAMS[p.team], h=p.h, S=h/2, hr=0.062*h;
-  const g=new THREE.Group(); scene.add(g);
+  const g=new THREE.Group(); (simRoot||scene).add(g);
   const skin=std(p.skin,0.55), white=std('#f4f4f4',0.5), hairM=std(p.hair,0.95), trimM=std(T.trim,0.6);
   const sleeveM=std(p.team===0?'#141519':'#f2f2f2',0.7), sockM=std('#f2f2f2',0.8), shortsM=new THREE.MeshStandardMaterial({map:shortsTex(T),roughness:0.75});
   const add=(m,sh=true)=>{m.castShadow=sh; g.add(m); return m;};
@@ -1835,17 +1982,17 @@ function makeRig(p){
   const tl=0.33*h;
   const tp=[[0,0.165],[0.15,0.163],[0.4,0.18],[0.65,0.214],[0.82,0.224],[0.92,0.19],[0.98,0.11],[1,0.07]].map(q=>new THREE.Vector2(q[1]*S,q[0]*tl));
   const tm=new THREE.Mesh(new THREE.LatheGeometry(tp,26,-Math.PI/2,Math.PI*2),new THREE.MeshStandardMaterial({map:jerseyTex(p,T),roughness:0.7}));
-  tm.scale.z=0.64; tm.position.y=0.02*h; tm.castShadow=true; R.torso.add(tm);
+  tm.scale.z=0.7; tm.position.y=0.02*h; tm.castShadow=true; R.torso.add(tm);
   const sp=[[0,0.205],[0.6,0.192],[1,0.178]].map(q=>new THREE.Vector2(q[1]*S,-0.09*h+q[0]*0.15*h));
   const shorts=new THREE.Mesh(new THREE.LatheGeometry(sp,22,-Math.PI/2,Math.PI*2),shortsM); shorts.scale.z=0.78; shorts.castShadow=true; R.torso.add(shorts);
   R.head=new THREE.Group(); g.add(R.head); R.headPivot=makeHead(p,T,hr,skin,hairM,trimM); R.head.add(R.headPivot);
-  R.neck=add(new THREE.Mesh(new THREE.CylinderGeometry(0.05*S,0.062*S,1,12),skin));
+  R.neck=add(new THREE.Mesh(new THREE.CylinderGeometry(0.056*S,0.085*S,1,12),skin));
   const armL=p.sleeve?sleeveM:skin;
   R.uaL=add(new THREE.Mesh(profileGeo(PROF.UA,S),armL)); R.uaR=add(new THREE.Mesh(profileGeo(PROF.UA,S),skin));
   R.faL=add(new THREE.Mesh(profileGeo(PROF.FA,S),armL)); R.faR=add(new THREE.Mesh(profileGeo(PROF.FA,S),skin));
-  R.shL=sph(0.072*S,armL); R.shR=sph(0.072*S,skin);
+  R.shL=sph(0.084*S,armL); R.shR=sph(0.084*S,skin);
   R.elL=sph(0.049*S,armL); R.elR=sph(0.049*S,skin);
-  const handGeo=new THREE.CylinderGeometry(0.04*S,0.034*S,1,10); handGeo.scale(1,1,0.55);
+  const handGeo=new THREE.CylinderGeometry(0.046*S,0.038*S,1,10); handGeo.scale(1,1,0.55);
   R.hdL=add(new THREE.Mesh(handGeo,skin)); R.hdR=add(new THREE.Mesh(handGeo,skin));
   if(p.wrist){ const wg=new THREE.CylinderGeometry(0.045*S,0.045*S,1,12); R.wbL=add(new THREE.Mesh(wg,trimM),false); R.wbR=add(new THREE.Mesh(wg,trimM),false); }
   const legM=p.ref?std('#141414',0.85):skin;
@@ -2058,25 +2205,30 @@ function poseRig(p,dt){
   }
 }
 
-const CAMCFG={broadcast:{dist:15,h:7.2,hfov:60,w:0.55,zmin:3.0,zmax:9.2,zoff:0.3},behind:{h:6,back:14,ty:2,hw:0.25,zmin:2.5,zmax:11,hfov:66}};
+const CAMCFG={broadcast:{dist:15,h:7.2,hfov:60,w:0.55,zmin:3.0,zmax:9.2,zoff:0.3},close:{dist:10.5,h:5.0,hfov:54,w:0.6,zmin:3.0,zmax:10,zoff:0.3},behind:{h:6,back:14,ty:2,hw:0.25,zmin:2.5,zmax:11,hfov:66}};
 function updateCamera(dt){
   if(!camera3||!game.ball) return;
   if(window.__camOverride){ const o=window.__camOverride; camera3.position.set(o.p[0],o.p[1],o.p[2]); camera3.lookAt(o.t[0],o.t[1],o.t[2]); camera3.fov=o.fov||30; camera3.aspect=W/H; camera3.updateProjectionMatrix(); return; }
-  const b=game.ball, f=b.holder||b;
+  const b=game.ball, f0=b.holder||b;
   const k=1-Math.exp(-dt*2.6), aspect=W/H;
-  if(game.camMode==='broadcast'){
-    const C=CAMCFG.broadcast;
-    const fz=clamp(f.z*C.w+RIM.z*(1-C.w),C.zmin,C.zmax), fx=clamp(f.x*0.3,-2.2,2.2);
+  const flp=game.flip, f={x:flp?-f0.x:f0.x,z:flp?28-f0.z:f0.z}, hz=flp?28-RIM.z:RIM.z;
+  if(game.camMode==='broadcast'||game.camMode==='close'){
+    const C=game.camMode==='close'?CAMCFG.close:CAMCFG.broadcast;
+    const w=game.full?(f0.z<14?0.72:0.9):C.w;
+    const fz=game.full?clamp(f.z*w+hz*(1-w),3.0,25.0):clamp(f.z*C.w+RIM.z*(1-C.w),C.zmin,C.zmax), fx=clamp(f.x*0.3,-2.2,2.2);
     camS.fz+=(fz-camS.fz)*k; camS.fx+=(fx-camS.fx)*k;
     camera3.position.set(camS.fx+C.dist,C.h,camS.fz+C.zoff);
     camera3.lookAt(camS.fx-0.5,1.45,camS.fz);
     camera3.fov=2*Math.atan(Math.tan(C.hfov*Math.PI/360)/aspect)*180/Math.PI;
   } else {
     const C=CAMCFG.behind;
-    const tx=clamp(f.x*0.55,-3.2,3.2), tz=clamp(f.z*(1-C.hw)+RIM.z*C.hw,C.zmin,C.zmax);
+    const tx=clamp(f0.x*0.55,-3.2,3.2), tz=clamp(f0.z*(1-C.hw)+RIM.z*C.hw,C.zmin,game.full?24:C.zmax);
+    if(game._bf!==flp){ game._bf=flp; camS.fx=tx; camS.fz=tz; }
     camS.fx+=(tx-camS.fx)*k; camS.fz+=(tz-camS.fz)*k;
-    camera3.position.set(camS.fx*0.72,C.h,camS.fz+C.back);
-    camera3.lookAt(camS.fx,C.ty,camS.fz);
+    const cp={x:camS.fx*0.72,z:camS.fz+C.back}, ct={x:camS.fx,z:camS.fz};
+    if(flp){ cp.x=-cp.x; cp.z=28-cp.z; ct.x=-ct.x; ct.z=28-ct.z; }
+    camera3.position.set(cp.x,C.h,cp.z);
+    camera3.lookAt(ct.x,C.ty,ct.z);
     camera3.fov=2*Math.atan(Math.tan(C.hfov*Math.PI/360)/aspect)*180/Math.PI;
   }
   camera3.aspect=aspect; camera3.updateProjectionMatrix();
@@ -2085,13 +2237,20 @@ function updateCamera(dt){
 }
 function snapCamera(){ updateCamera(10); updateCamera(10); }
 function project3(x,y,z){
+  if(game.flip){ x=-x; z=28-z; }
   _p.set(x,y,z); const d=_p.distanceTo(camera3.position); _p.project(camera3);
   if(_p.z>1) return null;
   return {x:(_p.x+1)/2*W,y:(1-_p.y)/2*H,s:H/(2*Math.tan(camera3.fov*Math.PI/360)*d)};
 }
 function rimPoint(a,y,r){ return [RIM.x+Math.sin(a)*r,y,RIM.z+Math.cos(a)*r]; }
 function updateNet(){
-  const b=game.ball||{x:0,y:-5,z:0}, N=12, sw=game.netSwish, y=RIM.y+game.rimShake*0.02*Math.sin(game.time*55);
+  const act=HOOPM[game.flip?1:0], idle=HOOPM[game.flip?0:1];
+  if(idle&&!idle.rested){ ({rimMesh,boardGroup,netPosAttr}=idle); netCore({x:0,y:-5,z:0},0,0); idle.rested=true; }
+  if(act){ act.rested=false; ({rimMesh,boardGroup,netPosAttr}=act); }
+  netCore(game.ball||{x:0,y:-5,z:0},game.netSwish,game.rimShake);
+}
+function netCore(bIn,swIn,shake){
+  const b=bIn, N=12, sw=swIn, y=RIM.y+shake*0.02*Math.sin(game.time*55);
   const ringR=[RIM.r,0.19,0.15], ringY=[0,-0.2-sw*0.06,-0.42-sw*0.12], R2=[];
   for(let k=0;k<3;k++){ const row=[]; for(let i=0;i<N;i++){
     const a=(i+(k%2)*0.5)/N*Math.PI*2+Math.sin(game.time*3+i)*0.02*k;
@@ -2103,11 +2262,12 @@ function updateNet(){
   const put=q=>{arr[o++]=q[0];arr[o++]=q[1];arr[o++]=q[2];};
   for(let k=0;k<2;k++) for(let i=0;i<N;i++){ const a=R2[k][i]; put(a); put(R2[k+1][i]); put(a); put(R2[k+1][k%2===0?(i+N-1)%N:(i+1)%N]); }
   netPosAttr.needsUpdate=true;
-  rimMesh.position.y=y; boardGroup.position.y=game.rimShake*0.008*Math.sin(game.time*60);
+  rimMesh.position.y=y; boardGroup.position.y=shake*0.008*Math.sin(game.time*60);
 }
 let crowdTick=0;
 function updateCrowd(dt){
   const ch=game.cheer; crowdTick+=dt;
+  if(!game.crowdOn) return;
   if(ch<=0.02&&!crowdBodies.userData.dirty) return;
   if(crowdTick<1/30) return; crowdTick=0;
   const heads=crowdBodies.userData.heads, dm=new THREE.Object3D(), t=performance.now()/1000;
@@ -2146,7 +2306,7 @@ function syncScene(dt){
   const wl=Math.hypot(wx,wy,wz);
   if(wl>0.01&&dt>0){ _ax.set(wx/wl,wy/wl,wz/wl); _bq.setFromAxisAngle(_ax,wl*dt); ballMesh.quaternion.premultiply(_bq); }
   updateNet();
-  if(game.mode==='game'){ const v=Math.ceil(game.shotClock); if(v!==lastClockVal){ lastClockVal=v; const g=clockCanvas.getContext('2d'); g.fillStyle='#05060a'; g.fillRect(0,0,128,64); g.fillStyle=v<=5?'#ff3b3b':'#ffb02e'; g.font='700 52px Oswald, monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(v,64,34); clockTex.needsUpdate=true; } }
+  if(game.mode==='game'){ const v=(!game.full||game.gameClock>game.shotClock)?Math.ceil(game.shotClock):0; if(v!==lastClockVal){ lastClockVal=v; const g=clockCanvas.getContext('2d'); g.fillStyle='#05060a'; g.fillRect(0,0,128,64); g.fillStyle=v<=5?'#ff3b3b':'#ffb02e'; g.font='700 52px Oswald, monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(v,64,34); clockTex.needsUpdate=true; } }
   for(const t of ledTex) t.offset.x=(t.offset.x+dt*0.03)%1;
   updateCrowd(dt); updateExtras();
   rings.forEach(r=>r.visible=false);
@@ -2177,8 +2337,16 @@ function drawHUD(){
       ctx.fillText(game.score[t],t===0?bx+bw-6:bx+6,y+h/2+1);
     }
     ctx.fillStyle='#000'; rr(W/2-cw/2+4,y+5,cw-8,h-10,6); ctx.fill();
+    const scShow=!game.full||game.gameClock>game.shotClock;
     ctx.fillStyle=game.shotClock<5?'#ff3b3b':'#ffb02e'; ctx.font='700 20px Oswald, monospace'; ctx.textAlign='center';
-    ctx.fillText(Math.ceil(game.shotClock),W/2,y+h/2+1);
+    ctx.fillText(scShow?Math.ceil(game.shotClock):'--',W/2,y+h/2+1);
+    if(game.full){
+      const qt=(game.quarter>4?'OT'+(game.quarter-4):'Q'+game.quarter)+'  '+fmtClock(game.gameClock);
+      ctx.font='700 13px Oswald, monospace'; const qw=ctx.measureText(qt).width+18;
+      ctx.fillStyle='rgba(12,14,20,.88)'; rr(W/2-qw/2,y+h+4,qw,20,7); ctx.fill();
+      ctx.fillStyle=game.gameClock<10?'#ff5a3a':'#e8eaf0'; ctx.fillText(qt,W/2,y+h+14);
+      if(game.off===0&&game.backT>5&&game.backT<8){ ctx.fillStyle='#ffb02e'; ctx.font=`700 12px ${FONT}`; ctx.fillText('快过半场! '+(8-game.backT).toFixed(1),W/2,y+h+36); }
+    }
     if(game.needClear&&game.off===0&&game.ball.state==='held'){
       const tx='带出三分线清球'; ctx.font=`700 12px ${FONT}`; const tw=ctx.measureText(tx).width+20;
       ctx.fillStyle='rgba(255,176,46,.92)'; rr(W/2-tw/2,y+h+6,tw,22,11); ctx.fill(); ctx.fillStyle='#1a1205'; ctx.fillText(tx,W/2,y+h+17);
@@ -2226,7 +2394,7 @@ function drawHUD(){
     const bnr=game.banner, a=Math.min(1,bnr.t*5,(bnr.dur-bnr.t)*4);
     ctx.globalAlpha=Math.max(0,a);
     ctx.font=`800 19px ${FONT}`; const tw=ctx.measureText(bnr.text).width+36;
-    const by=SAFE.t+(game.mode==='game'&&game.needClear&&game.off===0?100:72);
+    const by=SAFE.t+(game.full?98:(game.mode==='game'&&game.needClear&&game.off===0?100:72));
     ctx.fillStyle='rgba(10,12,18,.8)'; rr(W/2-tw/2,by-18,tw,36,8); ctx.fill();
     ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.fillText(bnr.text,W/2,by+1);
     ctx.globalAlpha=1;
@@ -2370,6 +2538,9 @@ function start(mode){
 }
 $('startGame').onclick=()=>start('game3');
 $('start1v1').onclick=()=>start('game1');
+$('startFull').onclick=()=>start('full');
+chipGroup('#qChips .chip','m',v=>{game.qLen=+v*60;try{localStorage.setItem('cs3_qlen',v)}catch(_){}});
+chipGroup('.crowdChips .chip','v',v=>{setCrowd(v==='1');try{localStorage.setItem('cs3_crowd',v)}catch(_){}});
 $('startPractice').onclick=()=>start('practice');
 function chipGroup(sel,attr,fn){ document.querySelectorAll(sel).forEach(c=>c.onclick=()=>{ document.querySelectorAll(sel).forEach(x=>x.classList.toggle('sel',x.dataset[attr]===c.dataset[attr])); fn(c.dataset[attr]); }); }
 chipGroup('#diffChips .chip','d',v=>{game.diff=+v;try{localStorage.setItem('cs3_diff',v)}catch(_){}});
@@ -2378,6 +2549,8 @@ chipGroup('.qualChips .chip','q',v=>{setQuality(+v);try{localStorage.setItem('cs
 try{
   const d=localStorage.getItem('cs3_diff'); if(d!==null){game.diff=+d; document.querySelectorAll('#diffChips .chip').forEach(x=>x.classList.toggle('sel',x.dataset.d===d));}
   const c=localStorage.getItem('cs3_cam'); if(c){game.camMode=c; document.querySelectorAll('.camChips .chip').forEach(x=>x.classList.toggle('sel',x.dataset.c===c));}
+  const ql=localStorage.getItem('cs3_qlen'); if(ql){ game.qLen=+ql*60; document.querySelectorAll('#qChips .chip').forEach(x=>x.classList.toggle('sel',x.dataset.m===ql)); }
+  const cr=localStorage.getItem('cs3_crowd'); if(cr!==null){ setCrowd(cr==='1'); document.querySelectorAll('.crowdChips .chip').forEach(x=>x.classList.toggle('sel',x.dataset.v===cr)); }
   const q=localStorage.getItem('cs3_q'); if(q!==null){ setQuality(+q); document.querySelectorAll('.qualChips .chip').forEach(x=>x.classList.toggle('sel',x.dataset.q===q)); }
 }catch(_){}
 $('pauseBtn').onclick=()=>{game.paused=true;show('pauseMenu',true);};
