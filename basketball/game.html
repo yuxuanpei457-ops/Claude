@@ -194,6 +194,11 @@ table.box th{color:var(--muted);font-weight:600}
           <button class="chip" data-s="zone">2-1联防</button>
           <button class="chip" data-s="trap">包夹</button>
         </div>
+        <div class="lbl">全场自动换人（体力低于 46 时，死球换上替补）</div>
+        <div class="chips" id="subChips">
+          <button class="chip sel" data-v="1">开</button>
+          <button class="chip" data-v="0">关</button>
+        </div>
       </div>
     </div>
     <div class="tacdesc" id="tacDesc">点防守策略看说明；点进攻战术会马上执行并回到比赛。</div>
@@ -384,6 +389,14 @@ const SHOT_STYLES={
 TEAMS[0].word='BLAZE'; TEAMS[1].word='WOLVES';
 TEAMS[2]={name:'裁判',color:'#ececec',dark:'#121214',trim:'#121214',word:'',players:[]};
 TEAMS.forEach((T,t)=>T.players.forEach((q,i)=>Object.assign(q,LOOKS[t][i])));
+TEAMS[0].bench=[
+  {name:'宋屿',num:5,h:1.90,skin:'#e0b08a',hair:'#1a120c',band:false,style:'short',shot:'quick',wrist:true,a:{three:81,mid:79,inside:72,speed:86,handle:84,def:72,reb:50,pass:82,dunk:62,block:36,stam:86}},
+  {name:'贺擎',num:44,h:2.09,skin:'#8a5536',hair:'#0f0a06',band:false,style:'buzz',shot:'set',beard:true,a:{three:55,mid:68,inside:84,speed:68,handle:56,def:82,reb:86,pass:62,dunk:84,block:80,stam:78}}];
+TEAMS[1].bench=[
+  {name:'江北',num:9,h:1.93,skin:'#d4a07a',hair:'#20150e',band:true,style:'short',shot:'set',a:{three:80,mid:80,inside:72,speed:84,handle:80,def:74,reb:52,pass:80,dunk:64,block:38,stam:85}},
+  {name:'雷鸣',num:42,h:2.10,skin:'#b07a55',hair:'#120c08',band:false,style:'afro',shot:'set',a:{three:54,mid:70,inside:85,speed:66,handle:55,def:83,reb:87,pass:60,dunk:86,block:82,stam:76}}];
+const STAM_BASE=[88,82,76,84,78];   // endurance of starters by slot (guards last longer than bigs)
+TEAMS.slice(0,2).forEach(T=>T.players.forEach((q,i)=>{ if(q.a.stam===undefined) q.a.stam=STAM_BASE[i]; }));
 const DIFF=[{cpu:-12,user:4,react:0.34,aggr:0.6,noise:1.6,bite:0.12},{cpu:-3,user:0,react:0.22,aggr:1,noise:1.1,bite:0},{cpu:4,user:0,react:0.15,aggr:1.35,noise:0.85,bite:-0.08}];
 
 const PLAYS={motion:'自由进攻',pnr:'挡拆顺下',pnp:'挡拆外弹',iso:'单打',offscreen:'无球掩护'};
@@ -413,12 +426,12 @@ const params=new URLSearchParams(location.search);
 const game={mode:'menu',size:3,players:[],teams:[[],[]],ball:null,off:0,score:[0,0],shotClock:24,needClear:false,dead:0,next:0,
   user:null,time:0,diff:1,over:false,auto:params.get('auto')==='1',paused:false,banner:null,cheer:0,rimShake:0,netSwish:0,
   prac:{att:0,made:0,ta:0,tm:0},landT:0,stuckT:0,retT:0,play:null,pending:[null,null],defScheme:['man','man'],assign:[[],[]],
-  camMode:'broadcast',quality:1,gestUsed:false,lastMode:'game3',full:false,flip:false,quarter:1,gameClock:180,qLen:180,crowdOn:true,backT:0,clockOut:false,qBreak:false};
+  camMode:'broadcast',autoSub:true,bench:[[],[]],quality:1,gestUsed:false,lastMode:'game3',full:false,flip:false,quarter:1,gameClock:180,qLen:180,crowdOn:true,backT:0,clockOut:false,qBreak:false};
 const floats=[];
 
 function makePlayer(def,team,idx,mod){
   const a={}; for(const k in def.a) a[k]=clamp(def.a[k]+mod,25,99);
-  return {name:def.name,num:def.num,h:def.h,skin:def.skin,hair:def.hair,band:def.band,style:def.style,beard:def.beard,wrist:def.wrist,sleeve:def.sleeve,shot:def.shot||'set',a,team,idx,
+  return {sta:100,staMax:100,fatigue:0,exh:false,onCourt:true,name:def.name,num:def.num,h:def.h,skin:def.skin,hair:def.hair,band:def.band,style:def.style,beard:def.beard,wrist:def.wrist,sleeve:def.sleeve,shot:def.shot||'set',a,team,idx,
     x:0,z:0,vx:0,vz:0,y:0,vy:0,yaw:Math.PI,state:'idle',t:0,ballSide:1,ballSideCur:1,phase:Math.random()*6,
     desire:{x:0,z:0,mag:0,sprint:false},jumped:false,released:false,userShot:false,idealT:0.4,aiRelease:0.4,jumpV:2.7,
     lv:{x:0,z:0},lvF:{x:0,z:0},hang:0,stumbleT:0,passCool:0,stealCool:0,contestT:-1,contestOn:null,reactT:0,tx:0,tz:0,decT:0,holdT:0,
@@ -436,7 +449,7 @@ function newGame(mode){
   game.full=mode==='full'; game.size=mode==='full'?5:mode==='game3'?3:1;
   if(game.flip) setFlip(false);
   game.score=[0,0]; game.over=false; game.time=0; game.paused=false; floats.length=0; game.gestUsed=false;
-  game.players.concat(game.refs||[]).forEach(p=>{ if(p.rig) p.rig.g.parent.remove(p.rig.g); });
+  game.players.concat(game.refs||[],(game.bench&&game.bench[0])||[],(game.bench&&game.bench[1])||[]).forEach(p=>{ if(p.rig&&p.rig.g.parent) p.rig.g.parent.remove(p.rig.g); });
   game.refs=[];
   game.players=[]; game.teams=[[],[]]; game.prac={att:0,made:0,ta:0,tm:0}; game.play=null; game.pending=[null,null];
   const d=DIFF[game.diff];
@@ -445,6 +458,8 @@ function newGame(mode){
     const p=makePlayer(TEAMS[t].players[i],t,i,t===0?d.user:d.cpu);
     p.rig=makeRig(p); game.players.push(p); game.teams[t].push(p);
   }
+  game.bench=[[],[]];
+  if(game.full) for(let t=0;t<2;t++) TEAMS[t].bench.forEach(def=>{ const p=makePlayer(def,t,-1,t===0?d.user:d.cpu); p.onCourt=false; p.rig=makeRig(p); p.rig.g.visible=false; game.bench[t].push(p); });
   game.ball=makeGameBall();
   game.user=game.teams[0][0];
   if(game.mode==='game') for(let i=0;i<2;i++){ const r=makePlayer({name:'裁判',num:'',h:1.84+i*0.04,skin:i?'#c48b62':'#e2b48c',hair:'#151515',style:'buzz',a:{three:50,mid:50,inside:50,speed:70,handle:50,def:50,reb:50,pass:50,dunk:50,block:50}},2,i,0); r.x=i?-8.1:3; r.z=i?8:-0.9; r.ref=true; r.yaw=0; r.rig=makeRig(r); game.refs.push(r); }
@@ -488,6 +503,7 @@ function ensureFrame(team){ if(game.full&&game.flip!==(team===1)) flipWorld(); }
 function setupInbound(team){
   const b=game.ball; ensureFrame(team);
   game.off=team; game.needClear=false; game.shotClock=24; game.dead=0; game.backT=0; endPlay();
+  autoSubs(0); autoSubs(1);
   const O=game.teams[team], D=game.teams[1-team];
   const opos=[[1.2,26.6],[-5,22.5],[5,22],[-2.5,19.5],[2.8,18.5]];
   O.forEach((p,i)=>resetP(p,opos[i][0],opos[i][1]));
@@ -501,6 +517,8 @@ function setupInbound(team){
 }
 function startQuarter(){
   const q=game.quarter; game.gameClock=q>4?Math.min(60,game.qLen):game.qLen; game.clockOut=false; game.qBreak=false;
+  const rest=q===3?14:7;   // halftime rests more
+  for(const p of game.players.concat(game.bench[0]||[],game.bench[1]||[])){ p.fatigue=Math.max(0,p.fatigue-rest); p.staMax=100-p.fatigue; p.sta=Math.min(p.staMax,p.sta+45); p.exh=false; }
   const starts=[0,1,1,0]; setupInbound(q<=4?starts[q-1]:(q%2));
   banner(q>4?'加时赛 OT'+(q-4):'第'+q+'节',1.6); sWhistle();
 }
@@ -649,6 +667,7 @@ function contestInfo(p,x,z){
     if(d.y>0.12||d.state==='jump') k*=1.45;           // hand up in the air
     if(d.biteT>0||d.stumbleT>0) k*=0.3;               // fooled by a move
     if(d.screenedT>0) k*=0.6;
+    k*=1-0.3*tiredK(d,0.5);                           // tired defenders close out late
     k=Math.max(0,k); sum+=k; if(k>best) best=k; if(k>0.1) who.push(d);
   }
   const score=best+(sum-best)*0.4;
@@ -668,6 +687,7 @@ function shotEP(p,x,z){
   return (three?3:2)*(makeP(s1,s1*0.55)+makeP(s2,s2*0.55))/2;
 }
 function setDesire(p,tx,tz,sprint){
+  if(sprint&&!isUser(p)&&p.sta<42&&game.ball&&game.ball.holder!==p&&Math.hypot(tx-p.x,tz-p.z)<6) sprint=false;   // AI saves its legs when it can
   const dx=tx-p.x,dz=tz-p.z,d=Math.hypot(dx,dz);
   if(d<0.12){p.desire.mag=0;p.desire.sprint=false;return;}
   p.desire.x=dx/d;p.desire.z=dz/d;p.desire.mag=Math.min(1,d/0.9);p.desire.sprint=!!sprint&&d>1.2;
@@ -687,7 +707,7 @@ function startJumper(p,user){
   const ss=SHOT_STYLES[p.shot]||SHOT_STYLES.set;
   const quick=p.sbWindow>0, y0=ballLocal(p).y;
   Object.assign(p,{state:'shoot',t:quick?0.05:0,jumped:false,released:false,userShot:user});
-  p.gather=ss.gather; p.jumpV=2.45+p.a.dunk*0.004;
+  p.gather=ss.gather; p.jumpV=(2.45+p.a.dunk*0.004)*(1-0.1*tiredK(p,0.55)); drain(p,3.5);
   p.idealT=p.gather+ss.rel*p.jumpV/G;
   p.shotY0=y0;
   // fadeaway: user pulls the stick away from the rim, or a fade shooter feels a close defender
@@ -712,7 +732,7 @@ function releaseShot(p){
   const ss=SHOT_STYLES[p.shot]||SHOT_STYLES.set;
   const ci=contestInfo(p,p.x,p.z), win=CONTEST[ci.level].win;
   const cf=1+(ci.cf-1)*(p.fade?0.7:ss.cmul);
-  const sig=jumperSigma(rating,dist,err,cf,win)*(p.fade?1.1:1);
+  const sig=jumperSigma(rating,dist,err,cf,win)*(p.fade?1.1:1)*(1+0.55*tiredK(p,0.6));   // tired legs = short/long misses
   const perfect=Math.abs(err)<=win;
   game.lastContest={level:ci.level,t:game.time,p};
   if(isUser(p)) floatText(CONTEST[ci.level].name,p.x,p.y+p.h+0.95,p.z,CONTEST[ci.level].color,14);
@@ -750,7 +770,7 @@ function releaseFloater(p){
   const bl=ballLocal(p), pos=localToWorld(p,bl.x,bl.y,bl.z);
   const D=Math.hypot(RIM.x-pos.x,RIM.z-pos.z)||1, ux=(RIM.x-pos.x)/D, uz=(RIM.z-pos.z)/D;
   const cf=1+(contestAt(p,p.x,p.z)-1)*0.5;   // the high arc gets over big men
-  const s=(0.30-0.0024*(p.a.inside+p.a.mid)/2)*(0.9+D*0.18)*cf;
+  const s=(0.30-0.0024*(p.a.inside+p.a.mid)/2)*(0.9+D*0.18)*cf*(1+0.4*tiredK(p,0.55));
   const along=0.02+gauss()*s, lat=gauss()*s*0.55;
   launch(p,pos,solveShot(pos,{x:RIM.x+ux*along-uz*lat,y:RIM.y,z:RIM.z+uz*along+ux*lat},66,6),2);
 }
@@ -779,7 +799,7 @@ function releaseLayup(p){
   if(uz<-0.2) uz=Math.abs(uz);
   const rd=Math.max(D,0.7);
   const pos={x:RIM.x+ux*rd,y:p.y+p.h*1.12,z:RIM.z+uz*rd};
-  const cf=contestAt(p,p.x,p.z), s=layupSigma(p,cf);
+  const cf=contestAt(p,p.x,p.z), s=layupSigma(p,cf)*(1+0.35*tiredK(p,0.5));
   const along=-0.02+gauss()*s, lat=gauss()*s*0.6;
   const aim={x:RIM.x-ux*along-uz*lat,y:RIM.y,z:RIM.z-uz*along+ux*lat};
   launch(p,pos,solveShot(pos,aim,62,8),2);
@@ -803,7 +823,7 @@ function slam(p){
 }
 function doJump(p,kind,lx=0,lz=0){
   if(p.state!=='idle'||p.y>0||p.stumbleT>0||p.fall>0) return;
-  p.state='jump'; p.t=0; p.vy=(kind==='block'?2.55+p.a.block*0.006:2.4+p.a.reb*0.005);
+  p.state='jump'; p.t=0; p.vy=(kind==='block'?2.55+p.a.block*0.006:2.4+p.a.reb*0.005)*(1-0.12*tiredK(p,0.55)); drain(p,4.5);
   p.vx=p.vx*0.6+lx; p.vz=p.vz*0.6+lz;
 }
 function pumpFake(p){ p.state='idle'; p.meter=null; p.t=0; floatText('假投',p.x,p.y+p.h+0.5,p.z,'#ffffff',15); }
@@ -828,6 +848,7 @@ function startMove(p,type,side){
     s1:(type==='cross'||type==='btl'||type==='btb')?localSide:(type==='spin'?-p.ballSide:p.ballSide),yaw0:yawF,vx:0,vz:0};
   p.yaw=yawF;
   p.combo=p.comboT>0?Math.min(4,p.combo+1):1;
+  drain(p,({cross:5,btl:4,btb:4.5,hesi:4.5,spin:7,stepback:6,jab:2.5,inout:4.5})[type]||4);
   sSqueak(0.5);
   return true;
 }
@@ -884,6 +905,7 @@ function fireMove(p){
     if(d.team===1) pr+=DIFF[game.diff].bite;
     const sch=game.defScheme[d.team]; if(sch==='press')pr+=0.08; if(sch==='drop')pr-=0.08;
     if(isUser(d)) pr*=0.55;
+    pr-=0.18*tiredK(p,0.55); pr+=0.12*tiredK(d,0.55);                 // a tired handler sells moves worse, a tired defender bites more
     pr=clamp(pr,0.04,0.92);
     if(Math.random()<pr){
       any=true;
@@ -945,7 +967,7 @@ function doPass(p,t){
   const ty=1.25;
   b.x=sx;b.y=sy;b.z=sz;b.vx=(tx-sx)/tt;b.vz=(tz-sz)/tt;b.vy=(ty-sy+0.5*G*tt*tt)/tt;b.wx=b.wy=b.wz=0;
   const err=(100-p.a.pass)*0.006; b.vx+=gauss()*err; b.vz+=gauss()*err;
-  p.passCool=0.9; p.passAnim=0.3; b.assistFrom=p; sPass();
+  p.passCool=0.9; p.passAnim=0.3; drain(p,0.6); b.assistFrom=p; sPass();
 }
 function attemptSteal(d,h){
   if(d.stealCool>0) return; d.stealCool=1.0;
@@ -1323,7 +1345,43 @@ function reboundAI(p,dt){
 }
 
 // ===== simulation =====
+// ----- stamina -----
+// sta: short-term energy (0..staMax). Every hard action spends it, easing off gives it back. fatigue builds up over the
+// game from everything spent and lowers staMax; quarter breaks and the bench take some of it away.
+function staF(p){ return clamp((p.sta??100)/100,0,1); }
+function tiredK(p,start){ return clamp((start-staF(p))/start,0,1); }      // 0 = fresh, 1 = empty
+function drain(p,amt){ if(!p||p.sta===undefined||game.mode==='practice') return; const k=1.35-(p.a.stam||80)/200; p.sta=Math.max(0,p.sta-amt*k); p.fatigue=Math.min(40,(p.fatigue||0)+amt*k*0.04); p.staMax=100-p.fatigue; if(p.sta<6&&!p.exh){ p.exh=true; if(isUser(p)) floatText('体力透支',p.x,p.h+0.7,p.z,'#ff5a3a',15); } }
+function updateStamina(p,dt){
+  if(game.mode==='practice'){ p.sta=100; return; }
+  const sp=Math.hypot(p.vx,p.vz);
+  if(game.dead>0) p.sta+=10*dt;
+  else if(p.desire.sprint&&sp>4.4&&p.state==='idle') drain(p,8*dt*(game.ball.holder===p?1.15:1));
+  else if(isDefStance(p)&&sp>1.2) drain(p,2.2*dt);
+  else if(sp<1.0) p.sta+=6.5*dt;
+  else if(sp<3.6) p.sta+=2.6*dt;
+  else if(sp<4.4) p.sta-=0.6*dt;
+  p.sta=Math.min(p.sta,p.staMax);
+  if(p.exh&&p.sta>28) p.exh=false;
+}
+function autoSubs(t){
+  if(!game.full||(t===0&&!game.autoSub)) return;
+  const B=game.bench[t]; if(!B||!B.length) return;
+  const outs=[];
+  for(let i=0;i<game.teams[t].length;i++){
+    const p=game.teams[t][i]; if(p.sta>=46) continue;
+    let best=null,bs=-1; for(const q of B){ if(q.sta<72) continue; const sc=q.sta-Math.abs(q.h-p.h)*120; if(sc>bs){bs=sc;best=q;} }
+    if(!best) continue;
+    B.splice(B.indexOf(best),1); B.push(p);
+    best.idx=i; best.onCourt=true; best.rig.g.visible=true; best.x=p.x; best.z=p.z; best.pose=null; best.feet=null;
+    p.onCourt=false; p.rig.g.visible=false; p.idx=-1;
+    game.teams[t][i]=best; game.players[game.players.indexOf(p)]=best;
+    if(game.user===p) game.user=best;
+    outs.push(p.name+'→'+best.name);
+  }
+  if(outs.length) floatText((t===0?'换人 ':'对手换人 ')+outs.join(' '),0,4.2,8,t===0?'#8fd4ff':'#ffb0a0',14);
+}
 function updatePlayer(p,dt){
+  updateStamina(p,dt);
   // animation drivers: smoothed speed, acceleration and a stride-matched gait phase (no foot sliding)
   { const sp=Math.hypot(p.vx,p.vz); p.animSp=(p.animSp||0)+(sp-(p.animSp||0))*(1-Math.exp(-dt*10));
     const ka=1-Math.exp(-dt*6); p.accX=(p.accX||0)+(clamp((p.vx-(p.pvx||0))/dt,-25,25)-(p.accX||0))*ka; p.accZ=(p.accZ||0)+(clamp((p.vz-(p.pvz||0))/dt,-25,25)-(p.accZ||0))*ka; p.pvx=p.vx; p.pvz=p.vz;
@@ -1352,11 +1410,11 @@ function updatePlayer(p,dt){
     p.t+=dt;
     const jt=p.euro?0.28:p.floater?0.08:0.1;
     if(p.euro&&p.y===0&&!p.jumped){ const s=p.t<0.14?-1.9:2.3; p.lv={x:p.lvF.x*0.8+p.euro.x*s,z:p.lvF.z*0.8+p.euro.z*s}; }
-    if(!p.jumped&&p.t>=jt){ p.jumped=true; p.vy=2.9+p.a.dunk*0.004; p.lv={x:p.lvF.x,z:p.lvF.z}; }
+    if(!p.jumped&&p.t>=jt){ p.jumped=true; p.vy=(2.9+p.a.dunk*0.004)*(1-0.1*tiredK(p,0.5)); drain(p,4.5); p.lv={x:p.lvF.x,z:p.lvF.z}; }
     if(!p.released&&p.t>=jt+(p.floater?0.17:0.26)){ if(p.floater) releaseFloater(p); else releaseLayup(p); }
   } else if(p.state==='dunk'){
     p.t+=dt;
-    if(!p.jumped&&p.t>=0.08){ p.jumped=true; p.vy=3.5+p.a.dunk*0.004; }
+    if(!p.jumped&&p.t>=0.08){ p.jumped=true; p.vy=(3.5+p.a.dunk*0.004)*(1-0.1*tiredK(p,0.5)); drain(p,7); }
     if(!p.released&&p.t>=0.38) slam(p);
   } else if(p.state==='jump') p.t+=dt;
   else if(p.state==='move') updateMove(p,dt);
@@ -1391,7 +1449,9 @@ function movePlayer(p,dt){
     p.x+=p.vx*dt; p.z+=p.vz*dt;
     if(p.y<=0){ p.y=0; if(p.vy<-1.5) p.landT=0.22; p.vy=0; if(p.state==='shoot'||p.state==='layup'||p.state==='dunk'||p.state==='jump'){ p.state='idle'; p.vx*=0.5; p.vz*=0.5; if(p.meter&&!p.meter.res)p.meter=null; } }
   } else {
-    let maxSp=p.desire.sprint?5.3+p.a.speed*0.016:3.2+p.a.speed*0.012;
+    if(p.exh) p.desire.sprint=false;                                     // gassed: no sprint
+    const fk=1-0.2*tiredK(p,0.7);                                        // top speed falls off below 70% energy
+    let maxSp=(p.desire.sprint?5.3+p.a.speed*0.016:3.2+p.a.speed*0.012)*fk;
     if(game.ball.holder===p) maxSp*=0.9;
     if(p.firstStep>0) maxSp*=1.22;
     if(p.screenedT>0) maxSp*=0.35;
@@ -1620,6 +1680,7 @@ function update(dt){
   updateBall(dt);
   rules(dt);
   updateRefs(dt);
+  if(game.bench) for(const B of game.bench) for(const q of B){ q.sta=Math.min(q.staMax,q.sta+9*dt); q.fatigue=Math.max(0,q.fatigue-0.35*dt); q.staMax=100-q.fatigue; if(q.exh&&q.sta>28) q.exh=false; }
   game.cheer=Math.max(0,game.cheer-dt*0.7);
   game.rimShake=Math.max(0,game.rimShake-dt*3);
   game.netSwish=Math.max(0,game.netSwish-dt*1.6);
@@ -2389,6 +2450,7 @@ function drawHUD(){
     }
   }
   drawContestPill();
+  drawStamina();
   if(u&&!game.auto){ const mp=project3(u.x,u.y+u.h+0.35,u.z); if(mp){ const s=7; ctx.fillStyle='#ffd34d'; ctx.beginPath(); ctx.moveTo(mp.x-s,mp.y-s*1.4); ctx.lineTo(mp.x+s,mp.y-s*1.4); ctx.lineTo(mp.x,mp.y); ctx.closePath(); ctx.fill(); } }
   if(game.banner){
     const bnr=game.banner, a=Math.min(1,bnr.t*5,(bnr.dur-bnr.t)*4);
@@ -2410,6 +2472,26 @@ function drawHUD(){
   gest.trail=gest.trail.filter(q=>now-q[2]<260);
   if(gest.trail.length>1){ ctx.strokeStyle='rgba(255,211,77,.75)'; ctx.lineWidth=6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); gest.trail.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke(); }
   if(u&&game.ball.holder===u&&(game.mode==='practice'||game.time<30||!game.gestUsed)) drawGestureHint(W*0.56,H-SAFE.b-68);
+}
+function staColor(f){ return f>0.6?'#36d27a':f>0.3?'#ffd34d':'#ff5a3a'; }
+function drawStamina(){
+  const u=game.user; if(!u||game.auto||game.mode!=='game') return;
+  // bar under the player
+  const mp=project3(u.rx??u.x,0,u.rz??u.z);
+  if(mp){ const f=staF(u), mx=u.staMax/100, w=46, x=mp.x-w/2, y=mp.y+10, blink=u.exh&&Math.sin(game.time*14)>0;
+    ctx.fillStyle='rgba(10,12,18,.75)'; rr(x-2,y-2,w+4,8,4); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(x,y,w*mx,4);
+    ctx.fillStyle=blink?'#ffffff':staColor(f); ctx.fillRect(x,y,w*f,4);
+    if(mx<1){ ctx.fillStyle='rgba(255,90,58,.55)'; ctx.fillRect(x+w*mx,y,w*(1-mx),4); } }
+  // team panel
+  const T=game.teams[0], bench=(game.bench&&game.bench[0])||[];
+  const rows=T.concat(bench), x0=SAFE.l+10, y0=SAFE.t+(game.size>1?94:56), rh=13;
+  ctx.fillStyle='rgba(12,14,20,.62)'; rr(x0,y0,118,rows.length*rh+8,8); ctx.fill();
+  ctx.font=`600 10px ${FONT}`; ctx.textAlign='left'; ctx.textBaseline='middle';
+  rows.forEach((p,i)=>{ const yy=y0+6+i*rh+rh/2, on=T.includes(p);
+    ctx.fillStyle=p===u?'#ffd34d':on?'#d8dce6':'#7d8494'; ctx.fillText((on?'':'替 ')+'#'+p.num+' '+p.name,x0+6,yy);
+    const bx=x0+70,bw=42; ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(bx,yy-2,bw*(p.staMax/100),4);
+    ctx.fillStyle=p.exh&&Math.sin(game.time*14)>0?'#fff':staColor(staF(p)); ctx.fillRect(bx,yy-2,bw*staF(p),4); });
 }
 function drawContestPill(){
   const u=game.user, b=game.ball; if(!u||game.auto||game.mode!=='game') return;
@@ -2539,6 +2621,7 @@ function start(mode){
 $('startGame').onclick=()=>start('game3');
 $('start1v1').onclick=()=>start('game1');
 $('startFull').onclick=()=>start('full');
+chipGroup('#subChips .chip','v',v=>{game.autoSub=v==='1';});
 chipGroup('#qChips .chip','m',v=>{game.qLen=+v*60;try{localStorage.setItem('cs3_qlen',v)}catch(_){}});
 chipGroup('.crowdChips .chip','v',v=>{setCrowd(v==='1');try{localStorage.setItem('cs3_crowd',v)}catch(_){}});
 $('startPractice').onclick=()=>start('practice');
@@ -2577,7 +2660,7 @@ function endGame(){
   let html='<table class="box"><thead><tr><th>球员</th><th>得分</th><th>篮板</th><th>助攻</th><th>抢断</th><th>盖帽</th><th>投篮</th><th>三分</th></tr></thead><tbody>';
   for(const t of [0,1]){
     html+=`<tr><td colspan="8" style="color:${TEAMS[t].color};font-weight:800;text-align:left;padding-top:8px">${TEAMS[t].name}</td></tr>`;
-    for(const p of game.teams[t]){ const s=p.stats; html+=`<tr><td>#${p.num} ${p.name}</td><td>${s.pts}</td><td>${s.reb}</td><td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.fgm}/${s.fga}</td><td>${s.tpm}/${s.tpa}</td></tr>`; }
+    for(const p of game.teams[t].concat((game.bench&&game.bench[t])||[])){ const s=p.stats; html+=`<tr><td>#${p.num} ${p.name}</td><td>${s.pts}</td><td>${s.reb}</td><td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.fgm}/${s.fga}</td><td>${s.tpm}/${s.tpa}</td></tr>`; }
   }
   $('boxScore').innerHTML=html+'</tbody></table>'; show('endMenu',true);
 }
