@@ -1873,12 +1873,14 @@ function targetPose(p){
   const toL=(wx,wz)=>({x:wx*c-wz*s,z:wx*s+wz*c});
   const sp=p.animSp||0, air=p.y>0.02||p.hang>0;
   const run=air?0:Math.min(1,sp/3), sprint=air?0:clamp((sp-4.6)/1.8,0,1);
-  const ph=p.phase, sw=Math.sin(ph), cw=Math.cos(ph);
+  const ph=p.phase, cw=Math.cos(ph), sw=(p.footW>0.5&&p.gaitS!==undefined)?p.gaitS:Math.sin(ph);
   const crouch=crouchOf(p), def=isDefStance(p);
   const lv=toL(p.vx,p.vz), vs=Math.hypot(lv.x,lv.z);
   const dirx=vs>0.1?lv.x/vs:0, dirz=vs>0.1?lv.z/vs:1;
   const amp=strideAmp(p,sp)*Math.min(1,sp/0.6);
   const spread=def?0.3*S:p.screenSet?0.27*S:(0.1+0.03*(1-run))*S;
+  const stag=def?0.07:(has&&st==='idle')?0.1:0.03;
+  const homeL=V(spread,0,stag), homeR=V(-spread,0,-stag);
   // gait: the swinging foot lifts while it moves forward, the stance foot stays on the floor
   const lift=k=>Math.max(0,k)*(0.1+0.09*sprint)*h*run;
   let fL=V(spread+dirx*amp*sw,lift(cw),dirz*amp*sw), fR=V(-spread-dirx*amp*sw,lift(-cw),-dirz*amp*sw);
@@ -1950,7 +1952,7 @@ function targetPose(p){
   else if(p.fall>0){ look=null; }
   let headYaw=0,pitch=0;
   if(look){ const dx=look.x-p.x,dz=look.z-p.z; headYaw=clamp(angDiff(p.yaw,Math.atan2(dx,dz))-twist*0.5,-1.1,1.1); pitch=clamp(-Math.atan2(ly-(p.y+0.9*h),Math.hypot(dx,dz)||1),-0.5,0.35); }
-  return {pel,chest,head,shL,shR,hL,hR,fL,fR,tw:V(twist,hipTw,headYaw),hp:V(pitch,0,0),poleL,poleR,goose,ballHand:!!ball&&(st==='idle'||st==='move')};
+  return {homeL,homeR,pel,chest,head,shL,shR,hL,hR,fL,fR,tw:V(twist,hipTw,headYaw),hp:V(pitch,0,0),poleL,poleR,goose,ballHand:!!ball&&(st==='idle'||st==='move')};
 }
 const POSE_KEYS=['pel','chest','head','shL','shR','hL','hR','fL','fR','tw','hp'];
 const POSE_W={pel:16,chest:14,head:15,shL:16,shR:16,hL:20,hR:20,fL:36,fR:36,tw:12,hp:7};
@@ -1960,6 +1962,48 @@ function sdamp(a,v,b,w,dt){
   for(const k of ['x','y','z']){ const ch=a[k]-b[k], tmp=(v[k]+w*ch)*dt; v[k]=(v[k]-w*tmp)*e; a[k]=b[k]+(ch+tmp)*e; }
 }
 let _q2=null;
+// ----- foot planting -----
+// While on the ground in normal play, each foot stays fixed on the floor until the body has moved far enough from it,
+// then it takes a step: lifts heel first, swings in an arc, lands heel first ahead of the hips. Running, walking,
+// defensive slides and turning in place all come out of the same rule, with no foot sliding.
+function procFeet(p,tp,dt){
+  const h=p.h, x0=p.rx??p.x, z0=p.rz??p.z, yaw=p.ryaw??p.yaw, c=Math.cos(yaw), s=Math.sin(yaw);
+  const toW=l=>({x:x0+l.x*c+l.z*s,z:z0-l.x*s+l.z*c});
+  const toLc=w=>{const dx=w.x-x0,dz=w.z-z0; return {x:dx*c-dz*s,z:dx*s+dz*c};};
+  if(!p.feet) p.feet=[{},{}];
+  const F=p.feet, home=[tp.homeL,tp.homeR], cur=[p.pose.fL,p.pose.fR];
+  const far=F[0].px!==undefined&&(Math.hypot(F[0].px-x0,F[0].pz-z0)>0.9*h||Math.hypot(F[1].px-x0,F[1].pz-z0)>0.9*h);  // teleported (dead-ball reset)
+  if(p.footW<0.05||F[0].px===undefined||far){ for(let i=0;i<2;i++){ const w=toW(cur[i]); F[i].px=w.x; F[i].pz=w.z; F[i].sw=null; } }
+  const vx=p.vx||0, vz=p.vz||0, sp=Math.hypot(vx,vz);
+  const lead=0.03;
+  const hw=home.map(l=>{const w=toW(l); return {x:w.x+vx*lead,z:w.z+vz*lead};});
+  if(dt>0){
+    for(let i=0;i<2;i++){ const f=F[i]; if(!f.sw) continue;
+      f.sw.u+=dt/f.sw.dur;
+      f.sw.tx=hw[i].x+vx*0.035; f.sw.tz=hw[i].z+vz*0.035;   // land a little ahead of the hips, re-aimed as the body moves
+      if(f.sw.u>=1){ f.px=f.sw.tx; f.pz=f.sw.tz; f.sw=null; }
+    }
+    const thr=sp<0.3?0.22*h/2:(0.08+0.075*sp)*h/2;
+    let bi=-1,be=0;
+    for(let i=0;i<2;i++){ const f=F[i]; if(f.sw) continue; const e=Math.hypot(f.px-hw[i].x,f.pz-hw[i].z); if(e>thr&&e>be){be=e;bi=i;} }
+    if(bi>=0){
+      const o=F[1-bi], ok=!o.sw||o.sw.u>(sp>3.5?0.5:0.9);
+      if(ok){ const dur=clamp(0.33-sp*0.03,0.14,0.33);
+        F[bi].sw={u:0,dur,fx:F[bi].px,fz:F[bi].pz,tx:hw[bi].x+vx*0.035,tz:hw[bi].z+vz*0.035,hgt:(0.035+0.022*Math.min(sp,6.5))*h/2}; }
+    }
+  }
+  const out=[];
+  for(let i=0;i<2;i++){ const f=F[i]; let w,y=0,pitch=0;
+    if(f.sw){ const u=clamp(f.sw.u,0,1), e=smooth(u); w={x:lerp(f.sw.fx,f.sw.tx,e),z:lerp(f.sw.fz,f.sw.tz,e)}; y=Math.sin(Math.PI*u)*f.sw.hgt;
+      pitch=u<0.35?0.6*u/0.35:u<0.8?0.6-1.05*(u-0.35)/0.45:-0.45*(1-(u-0.8)/0.2); }   // heel-off, swing, heel-strike
+    else w={x:f.px,z:f.pz};
+    const l=toLc(w); out.push({x:l.x,y,z:l.z,pitch});
+  }
+  const gap=0.13*h/2; if(out[0].x<out[1].x+gap){ const m=(out[0].x+out[1].x)/2; out[0].x=m+gap/2; out[1].x=m-gap/2; }  // feet never cross
+  p.gaitS=clamp((out[0].z-out[1].z)/(0.32*h),-1,1);
+  p.gaitLift=Math.max(out[0].y,out[1].y)/(0.05*h);
+  return out;
+}
 function poseRig(p,dt){
   const R=p.rig; if(!R) return;
   const tp=targetPose(p);
@@ -1967,15 +2011,24 @@ function poseRig(p,dt){
   if(dt>0) for(const k of POSE_KEYS){ let w=POSE_W[k]; if((k==='hL'||k==='hR')&&tp.ballHand) w=70; sdamp(p.pose[k],p.poseV[k],tp[k],w,dt); }
   const P=p.pose, h=p.h, S=h/2;
   if(!_q2) _q2=new THREE.Quaternion();
+  const proc=p.state==='idle'&&!(p.fall>0)&&(p.y||0)<0.02&&!(p.hang>0);
+  p.footW=(p.footW||0)+((proc?1:0)-(p.footW||0))*(dt>0?1-Math.exp(-dt*12):0);
+  let FL=P.fL, FR=P.fR, pitchL=null, pitchR=null;
+  if(p.footW>0.01){ const pf=procFeet(p,tp,dt), w=p.footW;
+    FL=V(lerp(P.fL.x,pf[0].x,w),lerp(P.fL.y,pf[0].y,w),lerp(P.fL.z,pf[0].z,w)); FR=V(lerp(P.fR.x,pf[1].x,w),lerp(P.fR.y,pf[1].y,w),lerp(P.fR.z,pf[1].z,w));
+    pitchL=pf[0].pitch*w; pitchR=pf[1].pitch*w; }
+  else { p.feet=null; }
+  // weight shifts over the planted foot while the other one swings (small at walking pace)
+  const shiftX=p.footW>0.5?clamp((FL.y-FR.y)/(0.05*h),-1,1)*-0.02*h*clamp(1-(p.animSp||0)/4,0,1):0;
   R.g.position.set(p.rx??p.x,p.ry??p.y,p.rz??p.z); R.g.rotation.y=p.ryaw??p.yaw;
-  R.torso.position.set(P.pel.x,P.pel.y,P.pel.z);
+  R.torso.position.set(P.pel.x+shiftX,P.pel.y,P.pel.z);
   _v.set(P.chest.x-P.pel.x,P.chest.y-P.pel.y,P.chest.z-P.pel.z).normalize(); R.torso.quaternion.setFromUnitVectors(_up,_v);
   _q2.setFromAxisAngle(_up,P.tw.x*0.7); R.torso.quaternion.multiply(_q2);
   R.head.position.set(P.head.x,P.head.y,P.head.z); R.headPivot.rotation.set(P.hp.x,P.tw.z,0,'YXZ');
   placeSeg(R.neck,V(P.chest.x,P.chest.y-0.02*h,P.chest.z),V(P.head.x,P.head.y-0.045*h,P.head.z));
   const ht=P.tw.y, hc=Math.cos(ht)*0.1*S, hs=Math.sin(ht)*0.1*S;
-  const hipL=V(P.pel.x+hc,P.pel.y-0.03*h,P.pel.z-hs), hipR=V(P.pel.x-hc,P.pel.y-0.03*h,P.pel.z+hs);
-  const ankL=V(P.fL.x,P.fL.y+0.045*h,P.fL.z), ankR=V(P.fR.x,P.fR.y+0.045*h,P.fR.z);
+  const hipL=V(P.pel.x+shiftX+hc,P.pel.y-0.03*h,P.pel.z-hs), hipR=V(P.pel.x+shiftX-hc,P.pel.y-0.03*h,P.pel.z+hs);
+  const ankL=V(FL.x,FL.y+0.045*h,FL.z), ankR=V(FR.x,FR.y+0.045*h,FR.z);
   const kL=ik(hipL,ankL,0.245*h,0.235*h,V(0.15,0,1)), kR=ik(hipR,ankR,0.245*h,0.235*h,V(-0.15,0,1));
   placeSeg(R.thL,hipL,kL.B); placeSeg(R.thR,hipR,kR.B);
   const mid=(A,B,t)=>V(A.x+(B.x-A.x)*t,A.y+(B.y-A.y)*t,A.z+(B.z-A.z)*t);
@@ -1983,10 +2036,10 @@ function poseRig(p,dt){
   placeSeg(R.shinL,kL.B,kL.C); placeSeg(R.shinR,kR.B,kR.C);
   R.knL.position.set(kL.B.x,kL.B.y,kL.B.z); R.knR.position.set(kR.B.x,kR.B.y,kR.B.z);
   placeSeg(R.sockL,kL.C,mid(kL.C,kL.B,0.36)); placeSeg(R.sockR,kR.C,mid(kR.C,kR.B,0.36));
-  for(const [shoe,C,f,sd] of [[R.shoeL,kL.C,P.fL,1],[R.shoeR,kR.C,P.fR,-1]]){
+  for(const [shoe,C,f,sd,pt] of [[R.shoeL,kL.C,FL,1,pitchL],[R.shoeR,kR.C,FR,-1,pitchR]]){
     shoe.position.set(C.x,C.y-0.045*h,C.z);
-    const lf=clamp(f.y/(0.08*h),0,1);
-    shoe.rotation.set(p.fall>0?-0.9:lf*(f.z<P.pel.z?0.6:-0.25),sd*0.08,0);
+    const lf=clamp(f.y/(0.08*h),0,1), poseP=lf*(f.z<P.pel.z?0.6:-0.25);
+    shoe.rotation.set(p.fall>0?-0.9:(pt===null?poseP:pt+poseP*(1-p.footW)),sd*0.08,0);
   }
   R.shL.position.set(P.shL.x,P.shL.y,P.shL.z); R.shR.position.set(P.shR.x,P.shR.y,P.shR.z);
   if(!p.poles) p.poles={L:{...tp.poleL},R:{...tp.poleR},g:0};
