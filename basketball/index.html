@@ -360,9 +360,9 @@ const TEAMS=[
   {name:'赤焰',color:'#d62839',dark:'#7d1220',trim:'#ffffff',
    players:[
     // real players with cartoon heads (toon = head shape / face style in TOON, kit = jersey/shorts colours); height and ratings unchanged
-    {name:'库里',num:30,h:1.88,skin:'#b27b56',hair:'#16110e',band:false,toon:'curry',kit:{color:'#1d428a',dark:'#16346e',trim:'#ffc72c',word:'WARRIORS'},a:{three:86,mid:84,inside:76,speed:90,handle:91,def:72,reb:55,pass:88,dunk:62,block:40}},
+    {name:'库里',num:30,h:1.88,skin:'#b67c5f',hair:'#16110e',band:false,toon:'curry',kit:{color:'#1d428a',dark:'#16346e',trim:'#ffc72c',word:'WARRIORS'},a:{three:86,mid:84,inside:76,speed:90,handle:91,def:72,reb:55,pass:88,dunk:62,block:40}},
     {name:'亚历山大',num:2,h:2.01,skin:'#6a4430',hair:'#141110',band:true,toon:'sga',kit:{color:'#002d62',dark:'#00244f',trim:'#ef3b24',word:'THUNDER'},a:{three:80,mid:86,inside:84,speed:82,handle:80,def:80,reb:72,pass:74,dunk:86,block:62}},
-    {name:'文班亚马',num:1,h:2.11,skin:'#5c3b2a',hair:'#121010',band:false,toon:'wemby',kit:{color:'#161616',dark:'#0c0c0c',trim:'#c4ced4',word:'SPURS'},a:{three:52,mid:68,inside:90,speed:66,handle:58,def:86,reb:92,pass:66,dunk:94,block:88}},
+    {name:'文班亚马',num:1,h:2.11,skin:'#b88868',hair:'#121010',band:false,toon:'wemby',kit:{color:'#161616',dark:'#0c0c0c',trim:'#c4ced4',word:'SPURS'},a:{three:52,mid:68,inside:90,speed:66,handle:58,def:86,reb:92,pass:66,dunk:94,block:88}},
    ]},
   {name:'苍狼',color:'#1f6feb',dark:'#0d3a85',trim:'#e9f0ff',
    players:[
@@ -1763,7 +1763,7 @@ function init3D(){
   zoneBack=new THREE.Mesh(new THREE.RingGeometry(0.5,ZONE_BACK,36,1,ZONE_HALF,Math.PI*2-ZONE_HALF*2),zm()); zoneBack.material.opacity=0.14;
   for(const m of [zoneFan,zoneEdge,zoneBack]){ m.position.y=0.011; m.visible=false; simRoot.add(m); }
   for(let i=0;i<3;i++){ const m=new THREE.Mesh(new THREE.RingGeometry(0.42,0.52,40),new THREE.MeshBasicMaterial({color:0xffd34d,transparent:true,opacity:0.9,depthWrite:false})); m.rotation.x=-Math.PI/2; m.position.y=0.012; m.visible=false; simRoot.add(m); rings.push(m); }
-  TEAMS.forEach(T=>T.players.forEach(q=>{ if(q.toon) toonTex(q.toon,TOON[q.toon],q); }));   // paint the cartoon faces while the menu is up
+  TEAMS.forEach(T=>T.players.forEach(q=>{ if(q.toon){ toonTex(q.toon,TOON[q.toon],q); if(TOON[q.toon].model) loadModelHead(TOON[q.toon].model); } }));   // paint the cartoon faces while the menu is up
 }
 function setCrowd(on){ game.crowdOn=on; crowdMeshes.forEach(m=>m.visible=on); }
 function setQuality(q){
@@ -2046,15 +2046,15 @@ function faceTex(p){
 // w/hu/hl/d/db: half width, height above/below the eyes, depth front/back; jaw: chin width factor (jp: how low the taper
 // starts); chin/nose/lip/brow/sock/back: bump sizes; hair: hairline elevation by |az|; shell/curl: hair thickness and curl.
 const TOON={
-  curry:{w:0.82,hu:1.0,hl:0.96,d:0.94,db:1.0,jaw:0.72,jp:1.3,chin:0.13,nose:0.24,lip:0.04,brow:0.05,sock:0.035,back:0.08,
+  curry:{w:0.78,hu:1.0,hl:1.02,d:0.94,db:1.0,jaw:0.66,jp:1.25,chin:0.13,nose:0.24,lip:0.04,brow:0.05,sock:0.035,back:0.08,
     hair:[[0,0.62],[0.5,0.57],[0.95,0.45],[1.18,-0.06],[1.33,0.24],[1.62,0.28],[1.95,0.06],[2.4,-0.32],[Math.PI,-0.42]],
-    shell:0.085,curl:0.32,brows:7,eyes:'smile',mouth:'smile',beard:'full'},
+    shell:0.085,curl:0.32,brows:7,eyes:'smile',mouth:'smile',beard:'curry',face:'v2',iris:'#7d6a35',model:'assets/heads/curry_head'},
   sga:{w:0.75,hu:1.06,hl:1.06,d:0.95,db:1.0,jaw:0.66,jp:1.2,chin:0.14,nose:0.26,lip:0.045,brow:0.05,sock:0.04,back:0.08,
     hair:[[0,0.66],[0.45,0.62],[0.9,0.5],[1.15,0.05],[1.33,0.26],[1.62,0.3],[1.95,0.1],[2.5,-0.3],[Math.PI,-0.4]],
     shell:0,braids:true,dreads:true,brows:4.5,eyes:'calm',mouth:'flat',beard:'none',hollow:true},
   wemby:{w:0.70,hu:1.12,hl:1.12,d:0.95,db:1.02,jaw:0.52,jp:1.05,chin:0.17,nose:0.28,lip:0.04,brow:0.06,sock:0.04,back:0.09,
     hair:[[0,0.64],[0.5,0.6],[0.95,0.46],[1.17,0.0],[1.33,0.24],[1.62,0.28],[1.95,0.08],[2.5,-0.3],[Math.PI,-0.4]],
-    shell:0.04,curl:0.25,brows:5,eyes:'calm',mouth:'flat',beard:'stubble',mole:[-0.45,-0.3]},
+    shell:0.04,curl:0.25,brows:5,eyes:'calm',mouth:'flat',beard:'stubble',mole:[-0.45,-0.3],model:'assets/heads/wemby_head'},
 };
 const TOON_GEO={}, TOON_TEX={}, TOON_MAT={};
 function toonCurve(K,a){ a=Math.abs(a); for(let i=1;i<K.length;i++) if(a<=K[i][0]){ const t=(a-K[i-1][0])/(K[i][0]-K[i-1][0]); return K[i-1][1]+(K[i][1]-K[i-1][1])*t*t*(3-2*t); } return K[K.length-1][1]; }
@@ -2091,7 +2091,7 @@ function toonGeo(key,S,kind){
     const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
     toonSculpt(S,x,y,z,o);
     if(kind==='hair'){   // shell: hair thickness above the hairline, tucked just under the skin everywhere else
-      const m=smooth((Math.asin(Math.max(-1,Math.min(1,y)))-toonCurve(S.hair,Math.atan2(x,z)))/0.07);
+      const m=smooth((Math.asin(Math.max(-1,Math.min(1,y)))-toonCurve(S.hair,Math.atan2(x,z))+0.03)/0.16);   // soft taper, no stair-steps at the hairline
       const off=m*S.shell*(1+S.curl*Math.sin(23*x+1.3)*Math.sin(21*y+0.4)*Math.sin(25*z+2.1))-(1-m)*0.05;
       const nx=x/S.w, ny=y/(y>0?S.hu:S.hl), nz=z/(z>0?S.d:S.db), l=Math.hypot(nx,ny,nz)||1;
       o.x+=nx/l*off; o.y+=ny/l*off; o.z+=nz/l*off;
@@ -2125,6 +2125,57 @@ function toonDreads(key,S){   // SGA: a bunch of short dreads on top, pointing u
   }
   return TOON_GEO[id]=mergeGeos(parts);
 }
+// 库里's beard: dense on the chin and along the jaw, thinning out up the cheeks; moustache joined to it around the mouth
+const CURRY_BT=[[0,-0.7],[0.3,-0.66],[0.55,-0.63],[0.8,-0.5],[1.05,-0.26],[1.22,0.0]];
+function curryBeard(az,el,rnd){
+  const a=Math.abs(az); if(a>1.3) return 0;
+  let d=smooth((toonCurve(CURRY_BT,a)-el)/0.11)*smooth((el+1.3)/0.25)*smooth((1.3-a)/0.1);
+  d=Math.max(d,0.95*smooth((0.31-a)/0.06)*smooth((0.046-Math.abs(el+0.365+0.16*a))/0.016));           // moustache, drooping a little
+  if(a>0.23&&a<0.32&&el<-0.42&&el>-0.72) d=Math.max(d,0.5*smooth((a-0.23)/0.03)*smooth((0.32-a)/0.03));   // thin link down the mouth corners
+  if(a<0.055&&el<-0.635&&el>-0.7) d=Math.max(d,0.75);                                                // soul patch
+  if(a<0.23&&el<-0.415&&el>-0.63) d*=smooth((a-0.2)/0.03);                                            // lips stay clear
+  return d<0.45?(rnd()<d*1.7?d*1.1:0):d*(0.62+0.3*rnd());                                             // sparse stubble where thin
+}
+// hand-drawn face, laid out from the player's photo: socket shadows, almond eyes with coloured irises, shaped brows,
+// nose with a lit bridge and shaded sides, two-tone lips, smile lines. Canvas px (163 per radian), x mirrored per side.
+function toonFaceV2(g,S,p,at,sk){
+  const C=k=>sk.clone().multiplyScalar(k).getStyle();
+  const sh=(x,y,rx,ry,rgb,a)=>{ g.save(); g.translate(x,y); g.scale(rx,ry); const gr=g.createRadialGradient(0,0,0,0,0,1); gr.addColorStop(0,'rgba('+rgb+','+a+')'); gr.addColorStop(1,'rgba('+rgb+',0)'); g.fillStyle=gr; g.fillRect(-1,-1,2,2); g.restore(); };
+  const lipU=sk.clone().multiplyScalar(0.66).lerp(new THREE.Color('#8a3a34'),0.35).getStyle(), lipL=sk.clone().multiplyScalar(0.86).lerp(new THREE.Color('#b85a55'),0.4).getStyle();
+  g.lineCap='round'; g.lineJoin='round';
+  for(const s of [-1,1]){
+    at(s*0.335,0.10,()=>{ g.scale(s*1.42,1.42);   // +x = away from the nose
+      sh(0,-5,31,21,'70,35,18',0.24);
+      g.strokeStyle=C(0.6); g.lineWidth=1.5; g.beginPath(); g.moveTo(-17,-8); g.quadraticCurveTo(1,-16,19,-7); g.stroke();   // lid crease
+      g.save(); g.beginPath(); g.moveTo(-17,2.5); g.quadraticCurveTo(-3,-11,17,-1.5); g.quadraticCurveTo(3,8,-17,2.5); g.closePath();
+      g.fillStyle='#efe6db'; g.fill(); g.clip();
+      g.fillStyle=S.iris||'#4a2d16'; g.beginPath(); g.arc(-0.5,-1.5,7.2,0,Math.PI*2); g.fill();
+      g.strokeStyle='rgba(30,20,8,.8)'; g.lineWidth=1.6; g.beginPath(); g.arc(-0.5,-1.5,6.6,0,Math.PI*2); g.stroke();
+      g.fillStyle='#0b0705'; g.beginPath(); g.arc(-0.5,-1.5,3,0,Math.PI*2); g.fill();
+      g.fillStyle='rgba(40,20,10,.28)'; g.fillRect(-20,-13,40,7.5);                                          // shade under the upper lid
+      g.fillStyle='rgba(255,255,255,.92)'; g.beginPath(); g.arc(1.8,-3.8,1.7,0,Math.PI*2); g.fill();
+      g.restore();
+      g.strokeStyle='#1c100a'; g.lineWidth=3; g.beginPath(); g.moveTo(-17.5,2.5); g.quadraticCurveTo(-3,-11.5,17,-1.5); g.lineTo(20.5,-3); g.stroke();   // upper lid, small wing
+      g.strokeStyle=C(0.62); g.lineWidth=1.2; g.beginPath(); g.moveTo(-13,5); g.quadraticCurveTo(3,8.5,16,0); g.stroke();
+      sh(2,12,16,5,'70,35,18',0.14);
+    });
+    at(s*0.33,0.33,()=>{ g.scale(s*1.4,1.4); g.fillStyle=p.hair; g.globalAlpha=0.93;                                 // brow: thick near the nose, tapering out
+      g.beginPath(); g.moveTo(-25,5); g.quadraticCurveTo(-6,-9,29,-1); g.lineTo(30,1.5); g.quadraticCurveTo(-4,-1.5,-23,11); g.closePath(); g.fill(); g.globalAlpha=1; });
+    at(s*0.27,-0.31,()=>{ g.scale(s*1.3,1.3); g.strokeStyle=C(0.88); g.lineWidth=1.3; g.beginPath(); g.moveTo(-7,-19); g.quadraticCurveTo(5,-2,3,20); g.stroke(); });   // smile line
+  }
+  at(0,-0.03,()=>{ sh(0,-8,6,40,'255,236,214',0.2); for(const s of [-1,1]) sh(s*13,2,8,36,'70,35,18',0.15); });
+  at(0,-0.19,()=>{ g.scale(1.3,1.3);
+    sh(0,-5,10,8,'255,236,214',0.24); sh(0,10,23,7,'60,28,14',0.32);
+    g.fillStyle=C(0.4); for(const s of [-1,1]){ g.beginPath(); g.ellipse(s*8.5,3.5,4.6,2.7,s*0.25,0,Math.PI*2); g.fill(); }
+    g.strokeStyle=C(0.62); g.lineWidth=1.5; for(const s of [-1,1]){ g.beginPath(); g.arc(s*12.5,0.5,6.5,s>0?-1.3:Math.PI-1.4,s>0?1.4:Math.PI+1.3); g.stroke(); }
+  });
+  at(0,-0.515,()=>{ g.scale(1.4,1.4);
+    g.fillStyle=lipU; g.beginPath(); g.moveTo(-24,0); g.quadraticCurveTo(-10,-8.5,-3,-6); g.quadraticCurveTo(0,-4,3,-6); g.quadraticCurveTo(10,-8.5,24,0); g.quadraticCurveTo(0,3.5,-24,0); g.fill();
+    g.fillStyle=lipL; g.beginPath(); g.moveTo(-22,1); g.quadraticCurveTo(0,17,22,1); g.quadraticCurveTo(0,4.5,-22,1); g.fill();
+    sh(0,7.5,10,3.5,'255,228,218',0.3);
+    g.strokeStyle='#3a1a14'; g.lineWidth=2; g.beginPath(); g.moveTo(-25.5,-1.5); g.quadraticCurveTo(-12,2,0,1.5); g.quadraticCurveTo(12,2,25.5,-1.5); g.stroke();
+  });
+}
 function toonTex(key,S,p){   // face canvas: skin, hairline, braids / beard / stubble per pixel, then brows, eyes, nose, mouth, mole
   if(TOON_TEX[key]) return TOON_TEX[key];
   const W=1024, H=512, c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d');
@@ -2141,6 +2192,9 @@ function toonTex(key,S,p){   // face canvas: skin, hairline, braids / beard / st
   for(let y=0;y<H;y++){ const el=(0.5-(y+0.5)/H)*Math.PI;
     for(let x=0;x<W;x++){ let az=((x+0.5)/W-0.25)*2*Math.PI; if(az>Math.PI) az-=2*Math.PI;
       let r=sk.r, gg=sk.g, b=sk.b;
+      if(S.face==='v2'){ const a=Math.abs(az), G2=(u,v)=>Math.exp(-u*u-v*v);   // soft form shading painted in: sides, jaw underside, forehead light, warm cheeks
+        const k=(1-0.12*smooth((a-0.85)/0.7))*(1-0.14*smooth((-0.72-el)/0.3))*(1+0.06*G2(az/0.4,(el-0.42)/0.16));
+        const bl=0.07*G2((a-0.47)/0.2,(el+0.16)/0.15); r=r*k*(1+bl*0.6); gg=gg*k*(1-bl*0.5); b=b*k*(1-bl*0.6); }
       const hm=smooth((el-toonCurve(S.hair,az))/0.012);
       if(hm>0){ let hr2=hc.r, hg=hc.g, hb=hc.b;
         if(S.braids){ const rp=((az/0.16)%1+1)%1, tw=Math.abs(rp-0.5)/0.5;
@@ -2148,7 +2202,8 @@ function toonTex(key,S,p){   // face canvas: skin, hairline, braids / beard / st
           else { const bead=0.5+0.5*Math.sin(el*95+Math.floor(az/0.16)*1.7), k2=1+1.6*bead*(1-tw); hr2*=k2; hg*=k2; hb*=k2; } }
         r+=(hr2-r)*hm; gg+=(hg-gg)*hm; b+=(hb-b)*hm; }
       let bm=0;
-      if(S.beard==='full') bm=beardAt(az,el)*(0.55+0.3*rnd());
+      if(S.beard==='curry') bm=curryBeard(az,el,rnd);
+      else if(S.beard==='full') bm=beardAt(az,el)*(0.55+0.3*rnd());
       else if(S.beard==='stubble'){ const a=Math.abs(az); bm=beardAt(az,el)*(rnd()<0.14?0.6:0); if(a<0.1&&el<-0.62&&el>-0.86) bm=Math.max(bm,0.8*(0.6+0.4*rnd())); }   // light stubble, small goatee
       if(bm>0){ r+=(hc.r-r)*bm; gg+=(hc.g-gg)*bm; b+=(hc.b-b)*bm; }
       const i=(y*W+x)*4; D[i]=r*255; D[i+1]=gg*255; D[i+2]=b*255; D[i+3]=255; } }
@@ -2157,6 +2212,7 @@ function toonTex(key,S,p){   // face canvas: skin, hairline, braids / beard / st
   const at=(az,el,fn)=>{ g.save(); g.translate(PX(az),PY(el)); g.scale(1/Math.cos(el),1); fn(); g.restore(); };
   const dark=sk.clone().multiplyScalar(0.6).getStyle(), lip=sk.clone().multiplyScalar(0.72).lerp(new THREE.Color('#7a3a32'),0.25).getStyle();
   g.lineCap='round'; g.lineJoin='round';
+  if(S.face==='v2') toonFaceV2(g,S,p,at,sk); else {
   for(const s of [-1,1]){
     at(s*0.3,0.27,()=>{ g.strokeStyle=p.hair; g.lineWidth=S.brows; g.beginPath(); g.moveTo(-s*29,3); g.quadraticCurveTo(s*10,-5-S.brows*0.3,s*33,1); g.stroke(); });   // brows
     at(s*0.31,0.1,()=>{
@@ -2188,6 +2244,7 @@ function toonTex(key,S,p){   // face canvas: skin, hairline, braids / beard / st
       g.strokeStyle='#2a140e'; g.lineWidth=1.8; g.beginPath(); g.moveTo(-20,0); g.quadraticCurveTo(0,2.5,20,0); g.stroke();
     }
   });
+  }
   if(S.mole) at(S.mole[0],S.mole[1],()=>{ g.fillStyle='#1d120c'; g.beginPath(); g.arc(0,0,3.8,0,Math.PI*2); g.fill(); });
   return TOON_TEX[key]=canvasTex(c);
 }
@@ -2201,6 +2258,25 @@ function toonHairMat(key,p){
   const t=canvasTex(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(5,3);
   return TOON_MAT[key+'hair']=new THREE.MeshStandardMaterial({map:t,roughness:0.95});
 }
+// sculpted head: a real head mesh with its own texture, <base>.json {pos,nor,uv,idx} (hr units, +z face, +y up, chin at y=-1)
+// plus <base>.jpg. The cartoon head above stays on screen until both are loaded, or for good if they cannot be used.
+const MODEL_HEAD={};
+function loadModelHead(base){
+  let r=MODEL_HEAD[base]; if(r) return r;
+  r=MODEL_HEAD[base]={geo:null,mat:null,cbs:[],dead:false};
+  const fail=()=>{ if(r.dead) return; console.warn('head model not usable here (serve the game over http):',base); r.dead=true; r.cbs.length=0; };
+  let d=null, n=0; const img=new Image();
+  const done=()=>{ if(++n<2||r.dead) return;
+    try{ const c=document.createElement('canvas'); c.width=c.height=1; const cg=c.getContext('2d'); cg.drawImage(img,0,0,1,1); cg.getImageData(0,0,1,1); }catch(e){ fail(); return; }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(d.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(d.nor,3));
+    g.setAttribute('uv',new THREE.Float32BufferAttribute(d.uv,2)); g.setIndex(d.idx);
+    const t=new THREE.Texture(img); t.encoding=THREE.sRGBEncoding; t.anisotropy=renderer?Math.min(8,renderer.capabilities.getMaxAnisotropy()):1; t.needsUpdate=true;
+    r.geo=g; r.mat=new THREE.MeshStandardMaterial({map:t,color:0xc4c4c4,emissive:0xffffff,emissiveMap:t,emissiveIntensity:0.26,roughness:0.85,envMapIntensity:0.5});   // part self-lit: softer top-light shadows on the face
+    r.cbs.forEach(f=>f()); r.cbs.length=0; };
+  try{ fetch(base+'.json').then(x=>{ if(!x.ok) throw 0; return x.json(); }).then(j=>{ d=j; done(); }).catch(fail); }catch(e){ fail(); }
+  img.onload=done; img.onerror=fail; img.src=base+'.jpg';
+  return r;
+}
 function toonHead(p,hp,hr,skin){
   const S=TOON[p.toon], k=p.toon, g=new THREE.Group(); g.scale.setScalar(hr); hp.add(g);
   if(!TOON_MAT[k]) TOON_MAT[k]=new THREE.MeshStandardMaterial({map:toonTex(k,S,p),roughness:0.55});   // same roughness as the body's skin
@@ -2210,6 +2286,8 @@ function toonHead(p,hp,hr,skin){
   const ears=toonEars(k,S); add(ears[0],skin,true); add(ears[1],TOON_MAT[k+'ear'],false);
   if(S.shell) add(toonGeo(k,S,'hair'),toonHairMat(k,p),true);
   if(S.dreads) add(toonDreads(k,S),toonHairMat(k,p),true);
+  if(S.model){ const r=loadModelHead(S.model), on=()=>{ const m=new THREE.Mesh(r.geo,r.mat); m.scale.setScalar(0.95*hr); m.position.y=0.06*hr; m.castShadow=true; hp.add(m); g.visible=false; };   // its own neck runs down into the collar
+    if(r.geo) on(); else if(!r.dead) r.cbs.push(on); }
 }
 function makeHead(p,T,hr,skin,hairM,trimM){
   const hp=new THREE.Group(); hp.rotation.order='YXZ';
